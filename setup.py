@@ -21,6 +21,7 @@ setup(
     classifiers=[
         "Environment :: Web Environment",
         "Framework :: Plone",
+        "Framework :: Plone :: 4.3",
         "Framework :: Plone :: 5.0",
         "Programming Language :: Python",
         "Programming Language :: Python :: 2.7",
@@ -41,7 +42,7 @@ setup(
         'plone.api',
         'Products.GenericSetup>=1.8.2',
         'setuptools',
-        'z3c.jbot',
+        'plone.app.multilingual'
     ],
     extras_require={
         'test': [
