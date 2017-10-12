@@ -1,6 +1,15 @@
-.. This README is meant for consumption by humans and pypi. Pypi can render rst files so please do not use Sphinx features.
-   If you want to learn more about writing documentation, please check out: http://docs.plone.org/about/documentation_styleguide.html
-   This text does not appear on pypi or github. It is a comment.
+.. image:: https://secure.travis-ci.org/codesyntax/cs.linguacopier.png?branch=master
+ :target: http://travis-ci.org/codesyntax/cs.linguacopier
+
+.. image:: https://coveralls.io/repos/github/codesyntax/cs.linguacopier/badge.svg?branch=master
+ :target: https://coveralls.io/github/codesyntax/cs.linguacopier?branch=master
+
+.. image:: https://landscape.io/github/codesyntax/cs.linguacopier/master/landscape.svg?style=flat
+  :target: https://landscape.io/github/codesyntax/cs.linguacopier/master
+  :alt: Code Health
+
+.. image:: https://readthedocs.org/projects/cslinguacopier/badge/?version=latest
+  :target: https://cslinguacopier.readthedocs.io/en/latest/?badge=latest
 
 ==============================================================================
 cs.linguacopier
@@ -54,8 +63,8 @@ and then running ``bin/buildout``
 Contribute
 ----------
 
-- Issue Tracker: https://github.com/collective/cs.linguacopier/issues
-- Source Code: https://github.com/collective/cs.linguacopier
+- Issue Tracker: https://github.com/codesyntax/cs.linguacopier/issues
+- Source Code: https://github.com/codesyntax/cs.linguacopier
 - Documentation: https://docs.plone.org/foo/bar
 
 
