@@ -206,7 +206,7 @@ class CopyContentToLanguage(form.Form):
                     ))
             else:
                 log.info('Not writeable. Can not set value for field {} in {}.'.format(
-                    fieldname, '/'.join(target.getPhysicalPath())) # noqa
+                    fieldname, '/'.join(target.getPhysicalPath()))) # noqa
 
     def copy_fields_dexterity(self, source, target):
         # Copy the content from the canonical fields
@@ -270,7 +270,7 @@ class CopyContentToLanguage(form.Form):
             else:
                 log.info('Set attribute {} in {}'.format(
                     key, '/'.join(target.context.getPhysicalPath())
-                )
+                ))
 
         except Exception, e:
             log.info('Error setting attribute {} on {}'.format(key, target))
