@@ -36,19 +36,23 @@ CHECKED_PROPERTIES = [
 ]
 
 
+def sort_by_physical_path_length(x, y):
+    return cmp(len(x.getPhysicalPath()), len(y.getPhysicalPath()))
+
+
 class ICopyContentToLanguage(Interface):
 
     context_element = schema.Bool(
         title=_(u'Include context element?'),
         description=_(u'If selected, the context element will be translated'),
         default=False,
-        )
+    )
 
     contents_too = schema.Bool(
         title=_(u'Include the contents?'),
         description=_(u'If selected, all the subobjects of this object '
                       u'will also be translated')
-        )
+    )
 
     target_languages = schema.List(
         title=_(u'Target languages'),
@@ -57,9 +61,9 @@ class ICopyContentToLanguage(Interface):
         value_type=schema.Choice(
             title=_(u'Target languages'),
             vocabulary=u'plone.app.vocabularies.SupportedContentLanguages'
-            ),
+        ),
         default=[],
-        )
+    )
 
 
 class CopyContentToLanguage(form.Form):
@@ -88,7 +92,7 @@ class CopyContentToLanguage(form.Form):
             for brain in brains:
                 list_of_items.append(brain.getObject())
 
-            list_of_items.sort(lambda x, y: cmp(len(x.getPhysicalPath()), len(y.getPhysicalPath())))
+            list_of_items.sort(sort_by_physical_path_length)
 
             for obj in list_of_items:
                 if obj != self.context:
@@ -119,7 +123,7 @@ class CopyContentToLanguage(form.Form):
                     for uid in value:
                         element = pcat(UID=uid, Language=obj.Language())
                         if element:
-                            manager = ITranslationManager(element[0].getObject())
+                            manager = ITranslationManager(element[0].getObject()) # noqa
                             element_trans = manager.get_translation(language)
                             if element_trans:
                                 uid_list.append(IUUID(element_trans))
@@ -132,11 +136,9 @@ class CopyContentToLanguage(form.Form):
             manager = ITranslationManager(item)
             if not manager.has_translation(language):
                 manager.add_translation(language)
-                log.info('Created translation for %s: %s' %
-                    ('/'.join(item.getPhysicalPath()),
-                     language,
-                    )
-                )
+                log.info('Created translation for {}: {}'.format(
+                    '/'.join(item.getPhysicalPath()), language
+                ))
                 import transaction
                 transaction.commit()
             translated = manager.get_translation(language)
@@ -146,7 +148,9 @@ class CopyContentToLanguage(form.Form):
             self.copy_other_things(item, translated)
             if isinstance(translated.id, unicode):
                 translated.id = translated.id.encode('utf-8')
-                log.info('Id changed to UTF-8: %s' % '/'.join(translated.getPhysicalPath()))
+                log.info('Id changed to UTF-8: {}'.format(
+                    '/'.join(translated.getPhysicalPath())
+                ))
             translated.reindexObject()
 
     def copy_other_things(self, original, translated):
@@ -197,14 +201,17 @@ class CopyContentToLanguage(form.Form):
                     value = value.encode('utf-8')
                 if value:
                     target_field.set(target, value)
-                    log.info('Set attribute %s in %s' % (fieldname, '/'.join(target.getPhysicalPath())))
+                    log.info('Set attribute {} in {}'.format(
+                        fieldname, '/'.join(target.getPhysicalPath())
+                    ))
             else:
-                log.info('Not writeable. Can not set value for field %s in %s.' % (fieldname, '/'.join(target.getPhysicalPath())))
+                log.info('Not writeable. Can not set value for field {} in {}.'.format(
+                    fieldname, '/'.join(target.getPhysicalPath())) # noqa
 
     def copy_fields_dexterity(self, source, target):
         # Copy the content from the canonical fields
         try:
-            fields = schema.getFieldsInOrder(source.getTypeInfo().lookupSchema())
+            fields = schema.getFieldsInOrder(source.getTypeInfo().lookupSchema()) # noqa
         except AttributeError, e:
             log.info('Error: %s' % '/'.join(source.getPhysicalPath()))
             log.exception(e)
@@ -226,7 +233,9 @@ class CopyContentToLanguage(form.Form):
                         # skip language
                         log.info('Skipped %s' % key)
                         continue
-                    self.change_content_for_behavior(source, target, key, behavior.interface)
+                    self.change_content_for_behavior(
+                        source, target, key, behavior.interface
+                    )
 
     def copy_seo_properties(self, source, target):
         # TODO: extract this to an adapter of ITranslateThings
@@ -239,29 +248,32 @@ class CopyContentToLanguage(form.Form):
                     log.info('Changed property %s for %s' % (k, path))
                 else:
                     if k == 'qSEO_keywords':
-                        target.manage_addProperty(k, source.getProperty(k), 'lines')
+                        target.manage_addProperty(
+                            k, source.getProperty(k), 'lines'
+                        )
                     else:
-                        target.manage_addProperty(k, source.getProperty(k), 'string')
+                        target.manage_addProperty(
+                            k, source.getProperty(k), 'string'
+                        )
 
     def change_content(self, source, target, key):
         value = getattr(getattr(source, key), 'raw', getattr(source, key))
         try:
             if getattr(getattr(source, key), 'raw', None) is not None:
-                setattr(target, key, RichTextValue(value, 'text/html', 'text/x-html-safe'))
-                if hasattr(source, 'getPhysicalPath'):
-                    log.info('Set attribute %s in %s' % (key, '/'.join(target.getPhysicalPath())))
-                else:
-                    log.info('Set attribute %s in %s' % (key, '/'.join(target.context.getPhysicalPath())))
+                value = RichTextValue(value, 'text/html', 'text/x-html-safe')
 
+            setattr(target, key, value)
+            if hasattr(source, 'getPhysicalPath'):
+                log.info('Set attribute {} in {}'.format(
+                    key, '/'.join(target.getPhysicalPath())
+                ))
             else:
-                setattr(target, key, value)
-                if hasattr(source, 'getPhysicalPath'):
-                    log.info('Set attribute %s in %s' % (key, '/'.join(target.getPhysicalPath())))
-                else:
-                    log.info('Set attribute %s in %s' % (key, '/'.join(target.context.getPhysicalPath())))
+                log.info('Set attribute {} in {}'.format(
+                    key, '/'.join(target.context.getPhysicalPath())
+                )
 
         except Exception, e:
-            log.info('Error setting attribute %s on %s' % (key, target))
+            log.info('Error setting attribute {} on {}'.format(key, target))
             log.exception(e)
 
     def change_content_for_behavior(self, source, target, key, behavior):
