@@ -1,30 +1,29 @@
+# -*- coding: utf-8 -*-
 from cs.linguacopier import _
 from cs.linguacopier.interfaces import ITranslateThings
+from logging import getLogger
 from plone import api
-from plone.app.layout.navigation.interfaces import INavigationRoot
 from plone.app.textfield.value import RichTextValue
 from plone.behavior.interfaces import IBehaviorAssignable
 from plone.dexterity.interfaces import IDexterityContent
 from plone.uuid.interfaces import IUUID
-from Products.CMFCore.utils import getToolByName
 from Products.statusmessages.interfaces import IStatusMessage
+from types import ListType
 from z3c.form import field, button
 from z3c.form import form
 from zope import schema
 from zope.component import getAdapters
-from zope.component import queryMultiAdapter
 from zope.interface import Interface
 from zope.schema import getFieldsInOrder
 
 import pkg_resources
 
-if pkg_resources.get_distribution('plone.multilingual')
+if pkg_resources.get_distribution('plone.multilingual'):
     from plone.multilingual.interfaces import ITranslationManager
 else:
     from plone.app.multilingual.interfaces import ITranslationManager
 
 
-from logging import getLogger
 log = getLogger('cs.linguacopier.copier')
 
 
@@ -53,7 +52,7 @@ class ICopyContentToLanguage(Interface):
 
     target_languages = schema.List(
         title=_(u'Target languages'),
-        description=_(u'Select into which languages ''
+        description=_(u'Select into which languages '
                       u'the translation will be made'),
         value_type=schema.Choice(
             title=_(u'Target languages'),
@@ -76,8 +75,7 @@ class CopyContentToLanguage(form.Form):
 
         data, errors = self.extractData()
         if errors:
-            self.status = self.formE
-            rrorsMessage
+            self.status = self.formErrorsMessage
             return
         target_languages = data.get('target_languages', [])
         if data.get('context_element', False):
@@ -90,9 +88,7 @@ class CopyContentToLanguage(form.Form):
             for brain in brains:
                 list_of_items.append(brain.getObject())
 
-            list_of_items.sort(lambda x, y: cmp(len(x.getPhysicalPath()),
-                                                len(y.getPhysicalPath()))
-            )
+            list_of_items.sort(lambda x, y: cmp(len(x.getPhysicalPath()), len(y.getPhysicalPath())))
 
             for obj in list_of_items:
                 if obj != self.context:
@@ -114,7 +110,7 @@ class CopyContentToLanguage(form.Form):
         pcat = api.portal.get_tool('portal_catalog')
         for key, value in fields:
             value = value.get(obj)
-            if type(value) == type([]):
+            if isinstance(value, ListType):
                 manager = ITranslationManager(obj)
                 for language in target_languages:
                     translated_obj = manager.get_translation(language)
@@ -188,7 +184,7 @@ class CopyContentToLanguage(form.Form):
     def copy_fields_at(self, source, target):
         for field in source.Schema().fields():
             fieldname = field.__name__
-            if fieldname.lower() in SKIPPED_FIELDS_AT
+            if fieldname.lower() in SKIPPED_FIELDS_AT:
                 # skip language
                 log.info('Skipped %s' % fieldname)
                 continue
@@ -235,8 +231,6 @@ class CopyContentToLanguage(form.Form):
     def copy_seo_properties(self, source, target):
         # TODO: extract this to an adapter of ITranslateThings
         # Copy SEO properties added by quintagroup.seoptimizer
-        seo_context = queryMultiAdapter((self.context, self.context.REQUEST),
-                                        name='seo_context')
         for k, v in source.propertyItems():
             if k.startswith('qSEO_'):
                 if target.hasProperty(k):
