@@ -3,25 +3,19 @@ from cs.linguacopier import _
 from cs.linguacopier.interfaces import ITranslateThings
 from logging import getLogger
 from plone import api
+from plone.app.multilingual.interfaces import ITranslationManager
 from plone.app.textfield.value import RichTextValue
 from plone.behavior.interfaces import IBehaviorAssignable
 from plone.dexterity.interfaces import IDexterityContent
 from plone.uuid.interfaces import IUUID
 from Products.statusmessages.interfaces import IStatusMessage
-from types import ListType
-from z3c.form import field, button
+from z3c.form import button
+from z3c.form import field
 from z3c.form import form
 from zope import schema
 from zope.component import getAdapters
 from zope.interface import Interface
 from zope.schema import getFieldsInOrder
-
-import pkg_resources
-
-if pkg_resources.get_distribution('plone.multilingual'):
-    from plone.multilingual.interfaces import ITranslationManager
-else:
-    from plone.app.multilingual.interfaces import ITranslationManager
 
 
 log = getLogger('cs.linguacopier.copier')
@@ -107,14 +101,14 @@ class CopyContentToLanguage(form.Form):
         # XXX: Where is this used?
         try:
             fields = schema.getFieldsInOrder(obj.getTypeInfo().lookupSchema())
-        except AttributeError, e:
+        except AttributeError as e:
             log.info('Error: %s' % '/'.join(obj.getPhysicalPath()))
             log.exception(e)
 
         pcat = api.portal.get_tool('portal_catalog')
         for key, value in fields:
             value = value.get(obj)
-            if isinstance(value, ListType):
+            if isinstance(value, list):
                 manager = ITranslationManager(obj)
                 for language in target_languages:
                     translated_obj = manager.get_translation(language)
@@ -212,7 +206,7 @@ class CopyContentToLanguage(form.Form):
         # Copy the content from the canonical fields
         try:
             fields = schema.getFieldsInOrder(source.getTypeInfo().lookupSchema()) # noqa
-        except AttributeError, e:
+        except AttributeError as e:
             log.info('Error: %s' % '/'.join(source.getPhysicalPath()))
             log.exception(e)
             return
@@ -272,7 +266,7 @@ class CopyContentToLanguage(form.Form):
                     key, '/'.join(target.context.getPhysicalPath())
                 ))
 
-        except Exception, e:
+        except Exception as e:
             log.info('Error setting attribute {} on {}'.format(key, target))
             log.exception(e)
 
