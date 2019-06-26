@@ -16,6 +16,7 @@ from zope import schema
 from zope.component import getAdapters
 from zope.interface import Interface
 from zope.schema import getFieldsInOrder
+from Products.CMFPlone.utils import safe_unicode
 
 
 log = getLogger('cs.linguacopier.copier')
@@ -30,8 +31,8 @@ CHECKED_PROPERTIES = [
 ]
 
 
-def sort_by_physical_path_length(x, y):
-    return cmp(len(x.getPhysicalPath()), len(y.getPhysicalPath()))
+def sort_by_physical_path_length(x):
+    return len(x.getPhysicalPath())
 
 
 class ICopyContentToLanguage(Interface):
@@ -86,7 +87,7 @@ class CopyContentToLanguage(form.Form):
             for brain in brains:
                 list_of_items.append(brain.getObject())
 
-            list_of_items.sort(sort_by_physical_path_length)
+            list_of_items.sort(key=sort_by_physical_path_length)
 
             for obj in list_of_items:
                 if obj != self.context:
@@ -140,11 +141,7 @@ class CopyContentToLanguage(form.Form):
             self.copy_seo_properties(item, translated)
             self.copy_other_properties(item, translated)
             self.copy_other_things(item, translated)
-            if isinstance(translated.id, unicode):
-                translated.id = translated.id.encode('utf-8')
-                log.info('Id changed to UTF-8: {}'.format(
-                    '/'.join(translated.getPhysicalPath())
-                ))
+            # translated.id = safe_unicode(translated.id).encode('utf-8')
             translated.reindexObject()
 
     def copy_other_things(self, original, translated):
@@ -176,31 +173,6 @@ class CopyContentToLanguage(form.Form):
     def copy_fields(self, source, target):
         if IDexterityContent.providedBy(source):
             self.copy_fields_dexterity(source, target)
-        else:
-            self.copy_fields_at(source, target)
-
-    def copy_fields_at(self, source, target):
-        for field in source.Schema().fields():
-            fieldname = field.__name__
-            if fieldname.lower() in SKIPPED_FIELDS_AT:
-                # skip language
-                log.info('Skipped %s' % fieldname)
-                continue
-
-            value = field.get(source)
-            target_field = target.getField(fieldname, target)
-            if target_field.writeable(target):
-
-                if isinstance(value, unicode):
-                    value = value.encode('utf-8')
-                if value:
-                    target_field.set(target, value)
-                    log.info('Set attribute {} in {}'.format(
-                        fieldname, '/'.join(target.getPhysicalPath())
-                    ))
-            else:
-                log.info('Not writeable. Can not set value for field {} in {}.'.format(
-                    fieldname, '/'.join(target.getPhysicalPath()))) # noqa
 
     def copy_fields_dexterity(self, source, target):
         # Copy the content from the canonical fields
