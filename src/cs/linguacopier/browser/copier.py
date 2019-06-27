@@ -23,6 +23,7 @@ log = getLogger("cs.linguacopier.copier")
 
 
 # TODO: Generalize these lists to something editable
+SKIPPED_PORTAL_TYPES = ["LIF"]
 SKIPPED_FIELDS_AT = ["language"]
 SKIPPED_FIELDS_DX = ["language"]
 CHECKED_PROPERTIES = [
@@ -132,25 +133,28 @@ class CopyContentToLanguage(form.Form):
                         translated_obj.reindexObject()
 
     def copy_contents_of(self, item, target_languages):
-        for language in target_languages:
-            manager = ITranslationManager(item)
-            if not manager.has_translation(language):
-                manager.add_translation(language)
-                log.info(
-                    "Created translation for {}: {}".format(
-                        "/".join(item.getPhysicalPath()), language
+        if item.portal_type in SKIPPED_PORTAL_TYPES:
+            log.info("Item skipped: {0}".format("/".join(item.getPhysicalPath())))
+        else:
+            for language in target_languages:
+                manager = ITranslationManager(item)
+                if not manager.has_translation(language):
+                    manager.add_translation(language)
+                    log.info(
+                        "Created translation for {}: {}".format(
+                            "/".join(item.getPhysicalPath()), language
+                        )
                     )
-                )
-                import transaction
+                    import transaction
 
-                transaction.commit()
-            translated = manager.get_translation(language)
-            self.copy_fields(item, translated)
-            self.copy_seo_properties(item, translated)
-            self.copy_other_properties(item, translated)
-            self.copy_other_things(item, translated)
-            # translated.id = safe_unicode(translated.id).encode('utf-8')
-            translated.reindexObject()
+                    transaction.commit()
+                translated = manager.get_translation(language)
+                self.copy_fields(item, translated)
+                self.copy_seo_properties(item, translated)
+                self.copy_other_properties(item, translated)
+                self.copy_other_things(item, translated)
+                # translated.id = safe_unicode(translated.id).encode('utf-8')
+                translated.reindexObject()
 
     def copy_other_things(self, original, translated):
         """ Use an adapter lookup so developers can extend the copier """
