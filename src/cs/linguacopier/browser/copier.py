@@ -25,7 +25,7 @@ log = getLogger("cs.linguacopier.copier")
 # TODO: Generalize these lists to something editable
 SKIPPED_PORTAL_TYPES = ["LIF"]
 SKIPPED_FIELDS_AT = ["language"]
-SKIPPED_FIELDS_DX = ["language"]
+SKIPPED_FIELDS_DX = ["language", "id"]
 CHECKED_PROPERTIES = [
     {"name": "layout", "type": "string"},
     {"name": "default_page", "type": "string"},
