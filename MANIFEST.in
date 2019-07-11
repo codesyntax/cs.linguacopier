@@ -2,3 +2,4 @@ graft src/cs
 graft docs
 include *.rst
 global-exclude *.pyc
+include *.txt
