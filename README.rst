@@ -15,34 +15,14 @@
 cs.linguacopier
 ==============================================================================
 
-Tell me what your product does
+This products adds an action to copy contents to a selected language.
 
-Features
---------
+We have faced many times the work to create the contents of a site in one language and then recreate
+it in another language to let the customer or translators translate it.
 
-- Can be bullet points
+This products provides an action with several options, which allows the content editor to recreate the contents of one section of the site in one or more languages, easing the work of the content editor.
 
-
-Examples
---------
-
-This add-on can be seen in action at the following sites:
-- Is there a page on the internet where everybody can see the features?
-
-
-Documentation
--------------
-
-Full documentation for end users can be found in the "docs" folder, and is also available online at http://docs.plone.org/foo/bar
-
-
-Translations
-------------
-
-This product has been translated into
-
-- Klingon (thanks, K'Plai)
-
+Disclaimer: this product does not effectively translate the contents (does not translate "House" to "Casa"), it just copies the actual content in the other language
 
 Installation
 ------------
@@ -65,14 +45,13 @@ Contribute
 
 - Issue Tracker: https://github.com/codesyntax/cs.linguacopier/issues
 - Source Code: https://github.com/codesyntax/cs.linguacopier
-- Documentation: https://docs.plone.org/foo/bar
+- Use case: https://erral.github.io/ploneconf2017-multi-plone/
 
 
 Support
 -------
 
-If you are having issues, please let us know.
-We have a mailing list located at: project@example.com
+If you are having issues, please let us know using the Github Issue Tracker: https://github.com/codesyntax/cs.linguacopier/issues
 
 
 License
