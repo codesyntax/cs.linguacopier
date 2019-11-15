@@ -17,9 +17,11 @@ from zope import schema
 from zope.component import getAdapters
 from zope.interface import Interface
 from zope.schema import getFieldsInOrder
-
-
+from zope.intid.interfaces import IIntIds
+from z3c.relationfield import RelationValue
+from zope.component import getUtility
 log = getLogger("cs.linguacopier.copier")
+from z3c.relationfield.schema import RelationList
 
 
 # TODO: Generalize these lists to something editable
@@ -197,7 +199,7 @@ class CopyContentToLanguage(form.Form):
                 # skip language
                 log.info("Skipped %s" % key)
                 continue
-            self.change_content(source, target, key)
+            self.change_content(source, target, key, value)
 
         # Copy the contents from behaviors
         behavior_assignable = IBehaviorAssignable(source)
@@ -228,8 +230,27 @@ class CopyContentToLanguage(form.Form):
                     else:
                         target.manage_addProperty(k, source.getProperty(k), "string")
 
-    def change_content(self, source, target, key):
-        value = getattr(getattr(source, key), "raw", getattr(source, key))
+    def change_content(self, source, target, key, field=None):
+        try:
+            value = getattr(getattr(source, key), "raw", getattr(source, key))
+            if isinstance(field, RelationList):
+                intids = getUtility(IIntIds)
+                target_language = target.Language()
+                related_translations = []
+                for relation_field in value:
+                    related_element = relation_field.to_object
+                    if related_element:
+                        related_element_translation = ITranslationManager(related_element).get_translation(target_language)
+                        if related_element_translation:
+                            try:
+                                to_id = intids.getId(related_element_translation)
+                            except KeyError:
+                                to_id = intids.register(related_element_translation)
+                            related_translations.append(RelationValue(to_id))
+                value = related_translations
+        except Exception as e:
+            log.info("Error setting references attribute {} on {}".format(key, target))
+            log.exception(e)
         try:
             if getattr(getattr(source, key), "raw", None) is not None:
                 value = RichTextValue(value, "text/html", "text/x-html-safe")
