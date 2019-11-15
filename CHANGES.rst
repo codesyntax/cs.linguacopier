@@ -2,10 +2,12 @@ Changelog
 =========
 
 
+
+
 1.1 (unreleased)
 ----------------
 
-- Nothing changed yet.
+- Add functionality to copy RelationList fields
 
 
 1.0 (2019-07-11)
