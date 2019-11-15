@@ -8,6 +8,7 @@ Changelog
 ----------------
 
 - Add functionality to copy RelationList fields
+  [libargutxi]
 
 
 1.0 (2019-07-11)
