@@ -4,7 +4,7 @@ Changelog
 
 
 
-1.1 (unreleased)
+1.1 (2021-03-22)
 ----------------
 
 - add my name [Lur Ibargutxi <libargutxi@codesyntax.com>]
