@@ -7,7 +7,16 @@ Changelog
 1.1 (unreleased)
 ----------------
 
-- Add functionality to copy RelationList fields
+- add my name [Lur Ibargutxi <libargutxi@codesyntax.com>]
+
+- RelationList [Lur Ibargutxi <libargutxi@codesyntax.com>]
+
+- RelationList fields [Lur Ibargutxi <libargutxi@codesyntax.com>]
+
+-  [Mikel Larreategi <mlarreategi@codesyntax.com>]
+
+- [ci skip] [Mikel Larreategi <mlarreategi@codesyntax.com>]
+
   [libargutxi]
 
 
