@@ -14,7 +14,7 @@ long_description = '\n\n'.join([
 
 setup(
     name='cs.linguacopier',
-    version='1.1',
+    version='1.2.dev0',
     description="Content-copier useful to copy basic content from one language-tree to another to start working with the whole content-tree",
     long_description=long_description,
     # Get more from https://pypi.python.org/pypi?%3Aaction=list_classifiers
