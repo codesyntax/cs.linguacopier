@@ -7,7 +7,8 @@ Changelog
 1.2 (unreleased)
 ----------------
 
-- Nothing changed yet.
+- Remove includeDependencies for Plone 6 compatibility.
+  [erral]
 
 
 1.1 (2021-03-22)
