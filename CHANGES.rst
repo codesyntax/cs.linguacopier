@@ -4,7 +4,7 @@ Changelog
 
 
 
-1.2 (unreleased)
+1.2 (2024-07-23)
 ----------------
 
 - Remove includeDependencies for Plone 6 compatibility.
