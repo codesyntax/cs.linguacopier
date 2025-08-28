@@ -7,7 +7,8 @@ Changelog
 1.3 (unreleased)
 ----------------
 
-- Nothing changed yet.
+- Repackage.
+  [erral]
 
 
 1.2 (2024-07-23)
