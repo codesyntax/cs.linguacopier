@@ -7,7 +7,6 @@ from plone.app.textfield.value import RichTextValue
 from plone.behavior.interfaces import IBehaviorAssignable
 from plone.dexterity.interfaces import IDexterityContent
 from plone.uuid.interfaces import IUUID
-from Products.statusmessages.interfaces import IStatusMessage
 from z3c.form import button
 from z3c.form import field
 from z3c.form import form
@@ -98,7 +97,7 @@ class CopyContentToLanguage(form.Form):
 
         log.info("done")
         msg = _("Contents copied successfully")
-        IStatusMessage(self.request).add(msg, type="info")
+        api.portal.show_message(msg, type="info")
         return
 
     def copy_related_fields(self, obj, target_languages):

@@ -35,12 +35,21 @@ setup(
     url="https://pypi.python.org/pypi/cs.linguacopier",
     license="GPL version 2",
     include_package_data=True,
-    requires_python=">3.9,<3.15",
+    python_requires=">3.9,<3.15",
     zip_safe=False,
     install_requires=[
         "plone.api",
-        "Products.GenericSetup>=1.8.2",
         "plone.app.multilingual",
+        "plone.app.textfield",
+        "plone.behavior",
+        "plone.dexterity",
+        "plone.uuid",
+        "Products.CMFPlone",
+        "Products.GenericSetup>=1.8.2",
+        "z3c.form",
+        "z3c.relationfield",
+        "zope.intid",
+        "Zope",
     ],
     extras_require={
         "test": [
@@ -51,6 +60,7 @@ setup(
             "plone.testing",
             "plone.app.contenttypes",
             "plone.app.robotframework[debug]",
+            "plone.browserlayer",
         ],
     },
     entry_points="""
