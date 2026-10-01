@@ -40,12 +40,12 @@ setup(
     zip_safe=False,
     install_requires=[
         "plone.api",
+        "plone.base",
         "plone.app.multilingual",
         "plone.app.textfield",
         "plone.behavior",
         "plone.dexterity",
         "plone.uuid",
-        "Products.CMFPlone",
         "Products.GenericSetup>=1.8.2",
         "z3c.form",
         "z3c.relationfield",
