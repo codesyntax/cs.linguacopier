@@ -1,8 +1,6 @@
-# -*- coding: utf-8 -*-
 """Installer for the cs.linguacopier package."""
 
 from setuptools import setup
-
 
 long_description = "\n\n".join(
     [
