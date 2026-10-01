@@ -28,6 +28,7 @@ setup(
         "Programming Language :: Python :: 3.13",
         "Programming Language :: Python :: 3.14",
         "Operating System :: OS Independent",
+        "Development Status :: 5 - Production/Stable",
     ],
     keywords="Python Plone",
     author="Mikel Larreategi",
