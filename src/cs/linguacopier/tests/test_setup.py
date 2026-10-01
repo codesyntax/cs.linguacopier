@@ -1,6 +1,6 @@
 """Setup tests for this package."""
 
-from cs.linguacopier.testing import CS_LINGUACOPIER_INTEGRATION_TESTING  # noqa: E501
+from cs.linguacopier.testing import CS_LINGUACOPIER_INTEGRATION_TESTING
 from plone import api
 from plone.app.testing import setRoles
 from plone.app.testing import TEST_USER_ID

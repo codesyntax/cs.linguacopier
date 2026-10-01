@@ -62,6 +62,8 @@ setup(
             "plone.app.contenttypes",
             "plone.app.robotframework[debug]",
             "plone.browserlayer",
+            "Products.statusmessages",
+            "plone.app.relationfield",
         ],
     },
     entry_points="""
