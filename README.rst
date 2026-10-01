@@ -1,15 +1,32 @@
-.. image:: https://secure.travis-ci.org/codesyntax/cs.linguacopier.png?branch=master
- :target: http://travis-ci.org/codesyntax/cs.linguacopier
+|PyPI| |Python versions| |Plone versions| |Tests| |License| |GitHub issues| |GitHub last commit|
 
-.. image:: https://coveralls.io/repos/github/codesyntax/cs.linguacopier/badge.svg?branch=master
- :target: https://coveralls.io/github/codesyntax/cs.linguacopier?branch=master
+.. |PyPI| image:: https://img.shields.io/pypi/v/cs.linguacopier
+   :target: https://pypi.org/project/cs.linguacopier/
+   :alt: PyPI
 
-.. image:: https://landscape.io/github/codesyntax/cs.linguacopier/master/landscape.svg?style=flat
-  :target: https://landscape.io/github/codesyntax/cs.linguacopier/master
-  :alt: Code Health
+.. |Python versions| image:: https://img.shields.io/pypi/pyversions/cs.linguacopier
+   :target: https://pypi.org/project/cs.linguacopier/
+   :alt: Python versions
 
-.. image:: https://readthedocs.org/projects/cslinguacopier/badge/?version=latest
-  :target: https://cslinguacopier.readthedocs.io/en/latest/?badge=latest
+.. |Plone versions| image:: https://img.shields.io/pypi/frameworkversions/plone/cs.linguacopier
+   :target: https://pypi.org/project/cs.linguacopier/
+   :alt: Plone versions
+
+.. |Tests| image:: https://github.com/codesyntax/cs.linguacopier/actions/workflows/test-matrix.yml/badge.svg
+   :target: https://github.com/codesyntax/cs.linguacopier/actions
+   :alt: Tests
+
+.. |License| image:: https://img.shields.io/pypi/l/cs.linguacopier
+   :target: https://github.com/codesyntax/cs.linguacopier/blob/master/LICENSE.txt
+   :alt: License
+
+.. |GitHub issues| image:: https://img.shields.io/github/issues/codesyntax/cs.linguacopier
+   :target: https://github.com/codesyntax/cs.linguacopier/issues
+   :alt: GitHub issues
+
+.. |GitHub last commit| image:: https://img.shields.io/github/last-commit/codesyntax/cs.linguacopier
+   :target: https://github.com/codesyntax/cs.linguacopier/commits/master
+   :alt: GitHub last commit
 
 ==============================================================================
 cs.linguacopier
