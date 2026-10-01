@@ -7,12 +7,12 @@ from plone.app.textfield.value import RichTextValue
 from plone.behavior.interfaces import IBehaviorAssignable
 from plone.dexterity.interfaces import IDexterityContent
 from plone.uuid.interfaces import IUUID
-from Products.CMFPlone.utils import safe_unicode
 from Products.statusmessages.interfaces import IStatusMessage
 from z3c.form import button
 from z3c.form import field
 from z3c.form import form
 from z3c.relationfield import RelationValue
+from z3c.relationfield.schema import RelationList
 from zope import schema
 from zope.component import getAdapters
 from zope.component import getUtility
@@ -21,7 +21,6 @@ from zope.intid.interfaces import IIntIds
 from zope.schema import getFieldsInOrder
 
 log = getLogger("cs.linguacopier.copier")
-from z3c.relationfield.schema import RelationList
 
 # TODO: Generalize these lists to something editable
 SKIPPED_PORTAL_TYPES = ["LIF"]
@@ -98,7 +97,7 @@ class CopyContentToLanguage(form.Form):
                     self.copy_contents_of(obj, target_languages)
 
         log.info("done")
-        msg = _("Contents copied successfuly")
+        msg = _("Contents copied successfully")
         IStatusMessage(self.request).add(msg, type="info")
         return
 
@@ -153,7 +152,6 @@ class CopyContentToLanguage(form.Form):
                 self.copy_seo_properties(item, translated)
                 self.copy_other_properties(item, translated)
                 self.copy_other_things(item, translated)
-                # translated.id = safe_unicode(translated.id).encode('utf-8')
                 translated.reindexObject()
 
     def copy_other_things(self, original, translated):
@@ -221,7 +219,7 @@ class CopyContentToLanguage(form.Form):
                 if target.hasProperty(k):
                     target.manage_changeProperties({k: source.getProperty(k)})
                     path = "/".join(source.getPhysicalPath())
-                    log.info("Changed property {} for {}".format(k, path))
+                    log.info(f"Changed property {k} for {path}")
                 else:
                     if k == "qSEO_keywords":
                         target.manage_addProperty(k, source.getProperty(k), "lines")
