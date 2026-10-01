@@ -19,18 +19,7 @@ Disclaimer: this product does not effectively translate the contents (does not t
 
 ## Installation
 
-Install cs.linguacopier by adding it to your buildout:
-
-```ini
-[buildout]
-
-...
-
-eggs =
-    cs.linguacopier
-```
-
-and then running `bin/buildout`.
+Install cs.linguacopier by adding `cs.linguacopier` it to your project's dependencies (either buildout, pyproject.toml, requirements.txt, uv or whatever you use to manage your Plone project's dependencies).
 
 ## Contribute
 
