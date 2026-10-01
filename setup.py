@@ -1,9 +1,6 @@
-# -*- coding: utf-8 -*-
 """Installer for the cs.linguacopier package."""
 
-from setuptools import find_packages
 from setuptools import setup
-
 
 long_description = "\n\n".join(
     [
@@ -16,34 +13,44 @@ long_description = "\n\n".join(
 
 setup(
     name="cs.linguacopier",
-    version="1.4.dev0",
+    version="2.0.dev0",
     description="Content-copier useful to copy basic content from one language-tree to another to start working with the whole content-tree",
     long_description=long_description,
     # Get more from https://pypi.python.org/pypi?%3Aaction=list_classifiers
     classifiers=[
         "Environment :: Web Environment",
         "Framework :: Plone",
-        "Framework :: Plone :: 6.0",
+        "Framework :: Plone :: 6.2",
         "Programming Language :: Python",
-        "Programming Language :: Python :: 3",
+        "Programming Language :: Python :: 3.10",
+        "Programming Language :: Python :: 3.11",
+        "Programming Language :: Python :: 3.12",
+        "Programming Language :: Python :: 3.13",
+        "Programming Language :: Python :: 3.14",
         "Operating System :: OS Independent",
-        "License :: OSI Approved :: GNU General Public License v2 (GPLv2)",
+        "Development Status :: 5 - Production/Stable",
     ],
     keywords="Python Plone",
     author="Mikel Larreategi",
     author_email="mlarreategi@codesyntax.com",
     url="https://pypi.python.org/pypi/cs.linguacopier",
     license="GPL version 2",
-    packages=find_packages("src", exclude=["ez_setup"]),
-    namespace_packages=["cs"],
-    package_dir={"": "src"},
     include_package_data=True,
+    python_requires=">3.9,<3.15",
     zip_safe=False,
     install_requires=[
         "plone.api",
-        "Products.GenericSetup>=1.8.2",
-        "setuptools",
+        "plone.base",
         "plone.app.multilingual",
+        "plone.app.textfield",
+        "plone.behavior",
+        "plone.dexterity",
+        "plone.uuid",
+        "Products.GenericSetup>=1.8.2",
+        "z3c.form",
+        "z3c.relationfield",
+        "zope.intid",
+        "Zope",
     ],
     extras_require={
         "test": [
@@ -54,6 +61,9 @@ setup(
             "plone.testing",
             "plone.app.contenttypes",
             "plone.app.robotframework[debug]",
+            "plone.browserlayer",
+            "Products.statusmessages",
+            "plone.app.relationfield",
         ],
     },
     entry_points="""

@@ -2,15 +2,16 @@
     xmlns="http://namespaces.zope.org/zope"
     xmlns:browser="http://namespaces.zope.org/browser"
     xmlns:zcml="http://namespaces.zope.org/zcml"
-    i18n_domain="cs.linguacopier">
+    i18n_domain="cs.linguacopier"
+    >
 
   <browser:page
-    zcml:condition="installed plone.app.multilingual"
-    for="*"
-    name="copy-content-to"
-    class=".copier.CopyContentToLanguage"
-    permission="cmf.ManagePortal"
-    layer="cs.linguacopier.interfaces.ICsLinguacopierLayer"
-  />
+      name="copy-content-to"
+      for="*"
+      class=".copier.CopyContentToLanguage"
+      permission="cmf.ManagePortal"
+      layer="cs.linguacopier.interfaces.ICsLinguacopierLayer"
+      zcml:condition="installed plone.app.multilingual"
+      />
 
 </configure>

@@ -1,13 +1,17 @@
-# -*- coding: utf-8 -*-
 from plone.app.contenttypes.testing import PLONE_APP_CONTENTTYPES_FIXTURE
+from plone.app.multilingual.dx.interfaces import ILanguageIndependentField
 from plone.app.robotframework.testing import REMOTE_LIBRARY_BUNDLE_FIXTURE
 from plone.app.testing import applyProfile
 from plone.app.testing import FunctionalTesting
 from plone.app.testing import IntegrationTesting
 from plone.app.testing import PloneSandboxLayer
-from plone.testing import z2
+from plone.testing import zope
+from Products.CMFCore.utils import getToolByName
+from zope.configuration import xmlconfig
+from zope.interface import alsoProvides
 
 import cs.linguacopier
+import plone.app.multilingual
 
 
 class CsLinguacopierLayer(PloneSandboxLayer):
@@ -18,24 +22,42 @@ class CsLinguacopierLayer(PloneSandboxLayer):
         # Load any other ZCML that is required for your tests.
         # The z3c.autoinclude feature is disabled in the Plone fixture base
         # layer.
+        xmlconfig.file(
+            "testing.zcml", plone.app.multilingual, context=configurationContext
+        )
+        xmlconfig.file(
+            "overrides.zcml", plone.app.multilingual, context=configurationContext
+        )
+
+        # Enable languageindependent-field on IRelatedItems-behavior
+        from plone.app.relationfield.behavior import IRelatedItems
+
+        alsoProvides(IRelatedItems["relatedItems"], ILanguageIndependentField)
+
         self.loadZCML(package=cs.linguacopier)
 
     def setUpPloneSite(self, portal):
-        applyProfile(portal, 'cs.linguacopier:default')
+        # Define the languages before installing plone.app.multilingual so that
+        # the corresponding language root folders are created.
+        language_tool = getToolByName(portal, "portal_languages")
+        language_tool.addSupportedLanguage("ca")
+        language_tool.addSupportedLanguage("es")
+        language_tool.use_request_negotiation = True
+
+        applyProfile(portal, "plone.app.multilingual:default")
+        applyProfile(portal, "cs.linguacopier:default")
 
 
 CS_LINGUACOPIER_FIXTURE = CsLinguacopierLayer()
 
 
 CS_LINGUACOPIER_INTEGRATION_TESTING = IntegrationTesting(
-    bases=(CS_LINGUACOPIER_FIXTURE,),
-    name='CsLinguacopierLayer:IntegrationTesting'
+    bases=(CS_LINGUACOPIER_FIXTURE,), name="CsLinguacopierLayer:IntegrationTesting"
 )
 
 
 CS_LINGUACOPIER_FUNCTIONAL_TESTING = FunctionalTesting(
-    bases=(CS_LINGUACOPIER_FIXTURE,),
-    name='CsLinguacopierLayer:FunctionalTesting'
+    bases=(CS_LINGUACOPIER_FIXTURE,), name="CsLinguacopierLayer:FunctionalTesting"
 )
 
 
@@ -43,7 +65,7 @@ CS_LINGUACOPIER_ACCEPTANCE_TESTING = FunctionalTesting(
     bases=(
         CS_LINGUACOPIER_FIXTURE,
         REMOTE_LIBRARY_BUNDLE_FIXTURE,
-        z2.ZSERVER_FIXTURE
+        zope.WSGI_SERVER_FIXTURE,
     ),
-    name='CsLinguacopierLayer:AcceptanceTesting'
+    name="CsLinguacopierLayer:AcceptanceTesting",
 )

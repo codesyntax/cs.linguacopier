@@ -1,11 +1,21 @@
 include *.in
+include *.md
+include *.py
 include *.rst
 include *.txt
+include .coveragerc
+include base.cfg
+include buildout.cfg
+include test_plone50.cfg
+include test_plone51.cfg
+include test_plone52.cfg
 recursive-include docs *.GPL
 recursive-include docs *.rst
+recursive-include news *.breaking
 recursive-include news *.internal
 recursive-include news *.jinja
 recursive-include src *.pot
 recursive-include src *.sh
 recursive-include src *.xml
 recursive-include src *.zcml
+recursive-include news *

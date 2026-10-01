@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 from cs.linguacopier import _
 from cs.linguacopier.interfaces import ITranslateThings
 from logging import getLogger
@@ -8,21 +7,19 @@ from plone.app.textfield.value import RichTextValue
 from plone.behavior.interfaces import IBehaviorAssignable
 from plone.dexterity.interfaces import IDexterityContent
 from plone.uuid.interfaces import IUUID
-from Products.CMFPlone.utils import safe_unicode
-from Products.statusmessages.interfaces import IStatusMessage
 from z3c.form import button
 from z3c.form import field
 from z3c.form import form
+from z3c.relationfield import RelationValue
+from z3c.relationfield.schema import RelationList
 from zope import schema
 from zope.component import getAdapters
-from zope.interface import Interface
-from zope.schema import getFieldsInOrder
-from zope.intid.interfaces import IIntIds
-from z3c.relationfield import RelationValue
 from zope.component import getUtility
-log = getLogger("cs.linguacopier.copier")
-from z3c.relationfield.schema import RelationList
+from zope.interface import Interface
+from zope.intid.interfaces import IIntIds
+from zope.schema import getFieldsInOrder
 
+log = getLogger("cs.linguacopier.copier")
 
 # TODO: Generalize these lists to something editable
 SKIPPED_PORTAL_TYPES = ["LIF"]
@@ -41,25 +38,24 @@ def sort_by_physical_path_length(x):
 class ICopyContentToLanguage(Interface):
 
     context_element = schema.Bool(
-        title=_(u"Include context element?"),
-        description=_(u"If selected, the context element will be translated"),
+        title=_("Include context element?"),
+        description=_("If selected, the context element will be translated"),
         default=False,
     )
 
     contents_too = schema.Bool(
-        title=_(u"Include the contents?"),
+        title=_("Include the contents?"),
         description=_(
-            u"If selected, all the subobjects of this object "
-            u"will also be translated"
+            "If selected, all the subobjects of this object " "will also be translated"
         ),
     )
 
     target_languages = schema.List(
-        title=_(u"Target languages"),
-        description=_(u"Select into which languages " u"the translation will be made"),
+        title=_("Target languages"),
+        description=_("Select into which languages " "the translation will be made"),
         value_type=schema.Choice(
-            title=_(u"Target languages"),
-            vocabulary=u"plone.app.vocabularies.SupportedContentLanguages",
+            title=_("Target languages"),
+            vocabulary="plone.app.vocabularies.SupportedContentLanguages",
         ),
         default=[],
     )
@@ -70,12 +66,12 @@ class CopyContentToLanguage(form.Form):
     fields = field.Fields(ICopyContentToLanguage)
 
     label = _(
-        u"Copy the contents of this objects and its subobjects "
-        u"to the selected language/country"
+        "Copy the contents of this objects and its subobjects "
+        "to the selected language/country"
     )
     ignoreContext = True
 
-    @button.buttonAndHandler(_(u"Copy content"))
+    @button.buttonAndHandler(_("Copy content"))
     def copy_content_to(self, action):
 
         data, errors = self.extractData()
@@ -100,8 +96,8 @@ class CopyContentToLanguage(form.Form):
                     self.copy_contents_of(obj, target_languages)
 
         log.info("done")
-        msg = _(u"Contents copied successfuly")
-        IStatusMessage(self.request).add(msg, type="info")
+        msg = _("Contents copied successfully")
+        api.portal.show_message(msg, type="info")
         return
 
     def copy_related_fields(self, obj, target_languages):
@@ -136,7 +132,7 @@ class CopyContentToLanguage(form.Form):
 
     def copy_contents_of(self, item, target_languages):
         if item.portal_type in SKIPPED_PORTAL_TYPES:
-            log.info("Item skipped: {0}".format("/".join(item.getPhysicalPath())))
+            log.info("Item skipped: {}".format("/".join(item.getPhysicalPath())))
         else:
             for language in target_languages:
                 manager = ITranslationManager(item)
@@ -155,13 +151,12 @@ class CopyContentToLanguage(form.Form):
                 self.copy_seo_properties(item, translated)
                 self.copy_other_properties(item, translated)
                 self.copy_other_things(item, translated)
-                # translated.id = safe_unicode(translated.id).encode('utf-8')
                 translated.reindexObject()
 
     def copy_other_things(self, original, translated):
-        """ Use an adapter lookup so developers can extend the copier """
+        """Use an adapter lookup so developers can extend the copier"""
         adapters = getAdapters((original, translated), ITranslateThings)
-        for adapter in adapters:
+        for _name, adapter in adapters:
             adapter.translate()
 
     def copy_other_properties(self, item, translated):
@@ -171,13 +166,13 @@ class CopyContentToLanguage(form.Form):
             property_name = property_item.get("name")
             property_type = property_item.get("type")
             if item.hasProperty(property_name):
-                log.info("Copying property {}".format(property_name))
+                log.info(f"Copying property {property_name}")
                 if not translated.hasProperty(property_name):
                     translated.manage_addProperty(
                         property_name, item.getProperty(property_name), property_type
                     )
                 else:
-                    property_dict = dict(property_name=item.getProperty(property_name))
+                    property_dict = {property_name: item.getProperty(property_name)}
                     translated.manage_changeProperties(**property_dict)
 
     def copy_fields(self, source, target):
@@ -223,7 +218,7 @@ class CopyContentToLanguage(form.Form):
                 if target.hasProperty(k):
                     target.manage_changeProperties({k: source.getProperty(k)})
                     path = "/".join(source.getPhysicalPath())
-                    log.info("Changed property %s for %s" % (k, path))
+                    log.info(f"Changed property {k} for {path}")
                 else:
                     if k == "qSEO_keywords":
                         target.manage_addProperty(k, source.getProperty(k), "lines")
@@ -240,7 +235,9 @@ class CopyContentToLanguage(form.Form):
                 for relation_field in value:
                     related_element = relation_field.to_object
                     if related_element:
-                        related_element_translation = ITranslationManager(related_element).get_translation(target_language)
+                        related_element_translation = ITranslationManager(
+                            related_element
+                        ).get_translation(target_language)
                         if related_element_translation:
                             try:
                                 to_id = intids.getId(related_element_translation)
@@ -249,7 +246,7 @@ class CopyContentToLanguage(form.Form):
                             related_translations.append(RelationValue(to_id))
                 value = related_translations
         except Exception as e:
-            log.info("Error setting references attribute {} on {}".format(key, target))
+            log.info(f"Error setting references attribute {key} on {target}")
             log.exception(e)
         try:
             if getattr(getattr(source, key), "raw", None) is not None:
@@ -270,7 +267,7 @@ class CopyContentToLanguage(form.Form):
                 )
 
         except Exception as e:
-            log.info("Error setting attribute {} on {}".format(key, target))
+            log.info(f"Error setting attribute {key} on {target}")
             log.exception(e)
 
     def change_content_for_behavior(self, source, target, key, behavior):
