@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 """Installer for the cs.linguacopier package."""
 
-from setuptools import find_packages
 from setuptools import setup
 
 
@@ -23,7 +22,7 @@ setup(
     classifiers=[
         "Environment :: Web Environment",
         "Framework :: Plone",
-        "Framework :: Plone :: 6.0",
+        "Framework :: Plone :: 6.2",
         "Programming Language :: Python",
         "Programming Language :: Python :: 3",
         "Operating System :: OS Independent",
@@ -34,15 +33,11 @@ setup(
     author_email="mlarreategi@codesyntax.com",
     url="https://pypi.python.org/pypi/cs.linguacopier",
     license="GPL version 2",
-    packages=find_packages("src", exclude=["ez_setup"]),
-    namespace_packages=["cs"],
-    package_dir={"": "src"},
     include_package_data=True,
     zip_safe=False,
     install_requires=[
         "plone.api",
         "Products.GenericSetup>=1.8.2",
-        "setuptools",
         "plone.app.multilingual",
     ],
     extras_require={
