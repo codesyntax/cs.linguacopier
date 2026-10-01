@@ -156,7 +156,7 @@ class CopyContentToLanguage(form.Form):
     def copy_other_things(self, original, translated):
         """Use an adapter lookup so developers can extend the copier"""
         adapters = getAdapters((original, translated), ITranslateThings)
-        for adapter in adapters:
+        for _name, adapter in adapters:
             adapter.translate()
 
     def copy_other_properties(self, item, translated):
@@ -172,7 +172,7 @@ class CopyContentToLanguage(form.Form):
                         property_name, item.getProperty(property_name), property_type
                     )
                 else:
-                    property_dict = dict(property_name=item.getProperty(property_name))
+                    property_dict = {property_name: item.getProperty(property_name)}
                     translated.manage_changeProperties(**property_dict)
 
     def copy_fields(self, source, target):
