@@ -4,3 +4,7 @@
 [meta]
 template = "default"
 commit-id = "2.11.1"
+
+
+[tox]
+test_matrix = { "6.2" = ["*"] }
