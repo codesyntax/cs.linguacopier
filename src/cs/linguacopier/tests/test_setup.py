@@ -28,7 +28,7 @@ class TestSetup(unittest.TestCase):
 
     def test_product_installed(self):
         """Test if cs.linguacopier is installed."""
-        self.assertTrue(self.installer.isProductInstalled("cs.linguacopier"))
+        self.assertTrue(self.installer.is_product_installed("cs.linguacopier"))
 
     def test_browserlayer(self):
         """Test that ICsLinguacopierLayer is registered."""
@@ -50,7 +50,7 @@ class TestUninstall(unittest.TestCase):
             self.installer = api.portal.get_tool("portal_quickinstaller")
         roles_before = api.user.get_roles(TEST_USER_ID)
         setRoles(self.portal, TEST_USER_ID, ["Manager"])
-        self.installer.uninstallProducts(["cs.linguacopier"])
+        self.installer.uninstall_product(["cs.linguacopier"])
         setRoles(self.portal, TEST_USER_ID, roles_before)
 
     def test_product_uninstalled(self):
