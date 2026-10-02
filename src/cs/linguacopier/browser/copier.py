@@ -1,6 +1,3 @@
-from z3c.form.interfaces import WidgetActionExecutionError
-from zope.interface import Invalid
-
 from cs.linguacopier import _
 from cs.linguacopier import languages
 from cs.linguacopier.copier import ContentCopier
@@ -10,13 +7,14 @@ from cs.linguacopier.copier import UPDATED
 from logging import getLogger
 from plone import api
 from plone.app.z3cform.widgets.checkbox import CheckBoxFieldWidget
-from plone.autoform import directives
 from Products.Five.browser.pagetemplatefile import ViewPageTemplateFile
 from z3c.form import button
 from z3c.form import field
 from z3c.form import form
+from z3c.form.interfaces import WidgetActionExecutionError
 from zope import schema
 from zope.interface import Interface
+from zope.interface import Invalid
 
 log = getLogger("cs.linguacopier.copier")
 
