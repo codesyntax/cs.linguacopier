@@ -21,6 +21,26 @@ Disclaimer: this product does not effectively translate the contents (does not t
 
 Install cs.linguacopier by adding `cs.linguacopier` it to your project's dependencies (either buildout, pyproject.toml, requirements.txt, uv or whatever you use to manage your Plone project's dependencies).
 
+## REST API
+
+When [`plone.restapi`](https://pypi.org/project/plone.restapi/) is installed, the copier is also available over REST, so a Volto front end can use it:
+
+```
+POST /<content>/@copy-content-to
+```
+
+with a JSON body such as:
+
+```json
+{
+  "target_languages": ["es", "ca"],
+  "include_context": true,
+  "include_children": true
+}
+```
+
+The endpoint requires the **Manage portal** permission and always answers `200` with a per-object result. See the [documentation](https://cslinguacopier.readthedocs.io/en/latest/) for the full request and response contract.
+
 ## Contribute
 
 - [Issue tracker](https://github.com/codesyntax/cs.linguacopier/issues)
