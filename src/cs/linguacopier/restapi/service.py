@@ -22,6 +22,7 @@ class CopyContentToLanguage(Service):
         target_languages = data.get("target_languages") or []
         include_context = bool(data.get("include_context", False))
         include_children = bool(data.get("include_children", False))
+        translate = bool(data.get("translate", False))
 
         errors = self._validate(target_languages, include_context, include_children)
         copied = []
@@ -30,6 +31,7 @@ class CopyContentToLanguage(Service):
                 target_languages,
                 include_context=include_context,
                 include_children=include_children,
+                translate=translate,
             )
             copied = [
                 {

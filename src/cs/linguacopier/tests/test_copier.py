@@ -12,7 +12,15 @@ from cs.linguacopier.copier import sort_by_physical_path_length
 from cs.linguacopier.interfaces import ITranslateThings
 from cs.linguacopier.testing import CS_LINGUACOPIER_FUNCTIONAL_TESTING
 from cs.linguacopier.testing import CS_LINGUACOPIER_INTEGRATION_TESTING
+from cs.linguacopier.testing import FakeTranslationService
 from plone.app.multilingual.interfaces import ITranslationManager
+
+
+try:
+    from plone.app.multilingual.interfaces import IExternalTranslationService
+except ImportError:
+    IExternalTranslationService = None
+
 from plone.app.relationfield.behavior import IRelatedItems
 from plone.app.testing import setRoles
 from plone.app.testing import TEST_USER_ID
@@ -510,3 +518,83 @@ class TestCopyTransaction(unittest.TestCase):
         # raises; reaching here proves the pipeline never commits mid-request.
         self.assertEqual([r.status for r in report.successes], ["created"])
         self.assertTrue(ITranslationManager(doc).has_translation("es"))
+
+
+@unittest.skipUnless(
+    IExternalTranslationService, "external translation API not installed"
+)
+class TestTranslateOnCopy(unittest.TestCase):
+    layer = CS_LINGUACOPIER_FUNCTIONAL_TESTING
+
+    def setUp(self):
+        self.portal = self.layer["portal"]
+        setRoles(self.portal, TEST_USER_ID, ["Manager"])
+        self.ca = self.portal["ca"]
+        self.service = FakeTranslationService()
+        getGlobalSiteManager().registerUtility(
+            self.service, IExternalTranslationService, name="test-translator"
+        )
+
+    def tearDown(self):
+        getGlobalSiteManager().unregisterUtility(
+            self.service, IExternalTranslationService, name="test-translator"
+        )
+
+    def _document(self, **kwargs):
+        return createContentInContainer(self.ca, "Document", **kwargs)
+
+    def test_translates_scalar_text_fields(self):
+        doc = self._document(title="Hello", description="World")
+
+        ContentCopier(doc).copy(["es"], include_context=True, translate=True)
+
+        translated = ITranslationManager(doc).get_translation("es")
+        self.assertEqual(translated.title, "[es] Hello")
+        self.assertEqual(translated.description, "[es] World")
+
+    def test_translate_off_keeps_values(self):
+        doc = self._document(title="Hello", description="World")
+
+        ContentCopier(doc).copy(["es"], include_context=True)
+
+        translated = ITranslationManager(doc).get_translation("es")
+        self.assertEqual(translated.title, "Hello")
+        self.assertEqual(translated.description, "World")
+        self.assertEqual(self.service.calls, [])
+
+    def test_empty_values_are_not_translated(self):
+        doc = self._document(title="Hello", description="")
+
+        ContentCopier(doc).copy(["es"], include_context=True, translate=True)
+
+        self.assertTrue(self.service.calls)
+        self.assertNotIn("", [call[0] for call in self.service.calls])
+
+    def test_string_lists_are_not_translated(self):
+        doc = self._document(title="Hello")
+        doc.subjects = ("one", "two")
+        self.assertIn("one", doc.subjects)
+
+        ContentCopier(doc).copy(["es"], include_context=True, translate=True)
+
+        self.assertNotIn("one", [call[0] for call in self.service.calls])
+
+
+@unittest.skipUnless(
+    IExternalTranslationService, "external translation API not installed"
+)
+class TestTranslateFallback(unittest.TestCase):
+    layer = CS_LINGUACOPIER_FUNCTIONAL_TESTING
+
+    def setUp(self):
+        self.portal = self.layer["portal"]
+        setRoles(self.portal, TEST_USER_ID, ["Manager"])
+        self.ca = self.portal["ca"]
+
+    def test_no_service_keeps_original_values(self):
+        doc = createContentInContainer(self.ca, "Document", title="Hello")
+
+        ContentCopier(doc).copy(["es"], include_context=True, translate=True)
+
+        translated = ITranslationManager(doc).get_translation("es")
+        self.assertEqual(translated.title, "Hello")

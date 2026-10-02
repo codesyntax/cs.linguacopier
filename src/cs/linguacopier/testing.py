@@ -91,3 +91,22 @@ CS_LINGUACOPIER_ACCEPTANCE_TESTING = FunctionalTesting(
     ),
     name="CsLinguacopierLayer:AcceptanceTesting",
 )
+
+
+class FakeTranslationService:
+    """A fake external translation service that records and marks values."""
+
+    order = 1
+
+    def __init__(self):
+        self.calls = []
+
+    def is_available(self):
+        return True
+
+    def available_languages(self):
+        return []
+
+    def translate_content(self, content, source_language, target_language):
+        self.calls.append((content, source_language, target_language))
+        return f"[{target_language}] {content}"

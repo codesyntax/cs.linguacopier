@@ -5,6 +5,7 @@ the classic-UI form and the REST service, so it must not depend on z3c.form or
 the browser layer.
 """
 
+from cs.linguacopier import translation
 from cs.linguacopier.interfaces import ITranslateThings
 from dataclasses import dataclass
 from dataclasses import field
@@ -24,6 +25,7 @@ from zope.intid.interfaces import IIntIds
 from zope.schema import getFieldsInOrder
 
 import transaction
+
 
 log = getLogger("cs.linguacopier.copier")
 
@@ -73,14 +75,28 @@ class CopyReport:
 class ContentCopier:
     def __init__(self, context):
         self.context = context
+        self.translate = False
+        self._source_language = None
+        self._target_language = None
 
-    def copy(self, target_languages, include_context=False, include_children=False):
+    def copy(
+        self,
+        target_languages,
+        include_context=False,
+        include_children=False,
+        translate=False,
+    ):
         """Copy the context and/or its descendants into ``target_languages``.
 
         Best-effort: each object is isolated in its own savepoint, so a failure
         on one is recorded and rolled back without aborting the rest. The copy
         owns no transaction; the caller (request) commits at the end.
+
+        When ``translate`` is true, text field values are translated with the
+        configured external translation service, keeping the original when
+        nothing can translate it.
         """
+        self.translate = translate
         report = CopyReport()
         for item in self._items_to_copy(include_context, include_children):
             for language in target_languages:
@@ -121,6 +137,8 @@ class ContentCopier:
                     language,
                 )
             translated = manager.get_translation(language)
+            self._source_language = item.Language()
+            self._target_language = language
             self.copy_fields(item, translated)
             self.copy_other_properties(item, translated)
             self.copy_other_things(item, translated)
@@ -221,7 +239,8 @@ class ContentCopier:
                     )
 
     def change_content(self, source, target, key, field=None):
-        value = getattr(getattr(source, key), "raw", getattr(source, key))
+        source_value = getattr(source, key)
+        value = getattr(source_value, "raw", source_value)
         if isinstance(field, RelationList):
             intids = getUtility(IIntIds)
             target_language = target.Language()
@@ -239,8 +258,11 @@ class ContentCopier:
                             to_id = intids.register(related_element_translation)
                         related_translations.append(RelationValue(to_id))
             value = related_translations
-        if getattr(getattr(source, key), "raw", None) is not None:
+        if getattr(source_value, "raw", None) is not None:
+            # Rich text is copied verbatim here (translated in a later step).
             value = RichTextValue(value, "text/html", "text/x-html-safe")
+        elif self.translate and isinstance(value, str):
+            value = self._translate_value(value)
 
         setattr(target, key, value)
         if hasattr(source, "getPhysicalPath"):
@@ -256,3 +278,10 @@ class ContentCopier:
         behaviored_source = behavior(source)
         behaviored_target = behavior(target)
         self.change_content(behaviored_source, behaviored_target, key)
+
+    def _translate_value(self, value):
+        """Translate a scalar value, keeping the original when nothing does."""
+        translated = translation.translate(
+            value, self._source_language, self._target_language
+        )
+        return translated if translated else value

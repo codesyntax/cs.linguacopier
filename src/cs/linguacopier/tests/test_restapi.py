@@ -2,7 +2,15 @@
 
 from cs.linguacopier.interfaces import ITranslateThings
 from cs.linguacopier.testing import CS_LINGUACOPIER_RESTAPI_FUNCTIONAL_TESTING
+from cs.linguacopier.testing import FakeTranslationService
 from plone.app.multilingual.interfaces import ITranslationManager
+
+
+try:
+    from plone.app.multilingual.interfaces import IExternalTranslationService
+except ImportError:
+    IExternalTranslationService = None
+
 from plone.app.testing import setRoles
 from plone.app.testing import SITE_OWNER_NAME
 from plone.app.testing import SITE_OWNER_PASSWORD
@@ -69,6 +77,55 @@ class TestCopyContentTo(unittest.TestCase):
         # The request ran in the server's thread and committed; drop the test
         # thread's transaction so its reads see the new state.
         transaction.abort()
+
+    @unittest.skipUnless(
+        IExternalTranslationService, "external translation API not installed"
+    )
+    def test_translate_true_translates_content(self):
+        doc = self._create_document(title="Hello")
+        service = FakeTranslationService()
+        gsm = getGlobalSiteManager()
+        gsm.registerUtility(
+            service, IExternalTranslationService, name="test-translator"
+        )
+        try:
+            response = self.api_session.post(
+                self._endpoint(doc),
+                json={
+                    "target_languages": ["es"],
+                    "include_context": True,
+                    "translate": True,
+                },
+            )
+        finally:
+            gsm.unregisterUtility(
+                service, IExternalTranslationService, name="test-translator"
+            )
+        self._abort()
+
+        self.assertEqual(response.status_code, 200)
+        translated = ITranslationManager(doc).get_translation("es")
+        self.assertEqual(translated.title, "[es] Hello")
+
+    @unittest.skipUnless(
+        IExternalTranslationService, "external translation API not installed"
+    )
+    def test_translate_true_without_service_keeps_content(self):
+        doc = self._create_document(title="Hello")
+
+        response = self.api_session.post(
+            self._endpoint(doc),
+            json={
+                "target_languages": ["es"],
+                "include_context": True,
+                "translate": True,
+            },
+        )
+        self._abort()
+
+        self.assertEqual(response.status_code, 200)
+        translated = ITranslationManager(doc).get_translation("es")
+        self.assertEqual(translated.title, "Hello")
 
     def test_copy_context_to_language(self):
         doc = self._create_document(title="Hello")

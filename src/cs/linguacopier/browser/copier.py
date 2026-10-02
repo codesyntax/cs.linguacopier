@@ -16,6 +16,7 @@ from zope import schema
 from zope.interface import Interface
 from zope.interface import Invalid
 
+
 log = getLogger("cs.linguacopier.copier")
 
 #: Display-only status for an object the copier could not copy.
@@ -90,6 +91,16 @@ class ICopyContentToLanguage(Interface):
         required=True,
     )
 
+    translate = schema.Bool(
+        title=_("Translate the copied content?"),
+        description=_(
+            "Translate the field values with the configured external "
+            "translation service, when one is available."
+        ),
+        default=False,
+        required=False,
+    )
+
 
 class CopyContentToLanguage(form.Form):
 
@@ -128,6 +139,7 @@ class CopyContentToLanguage(form.Form):
             data.get("target_languages", []),
             include_context=data.get("include_context", False),
             include_children=data.get("include_children", False),
+            translate=data.get("translate", False),
         )
         log.info("done")
         api.portal.show_message(self._summary_message(), type=self._message_type())
