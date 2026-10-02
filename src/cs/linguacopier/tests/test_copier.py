@@ -21,6 +21,7 @@ from plone.app.dexterity.behaviors.metadata import IBasic
 from plone.app.multilingual.dx.interfaces import ILanguageIndependentField
 from plone.app.multilingual.interfaces import ITranslationManager
 
+
 try:
     from plone.app.multilingual.interfaces import IExternalTranslationService
 except ImportError:
@@ -279,6 +280,32 @@ class TestCopier(unittest.TestCase):
         self.assertEqual(len(translated.relatedItems), 1)
         self.assertEqual(translated.relatedItems[0].to_object, related_es)
 
+    def test_language_independent_relation_is_left_to_pam(self):
+        # relatedItems is marked language-independent in the test fixture.
+        # The copier skips it; plone.app.multilingual copies it when it creates
+        # the translation and remaps the relation to the target-language object.
+        related = self._create_document(title="Related")
+        doc = self._create_document(title="Main")
+        ITranslationManager(related).add_translation("es")
+
+        intids = getUtility(IIntIds)
+        try:
+            related_id = intids.getId(related)
+        except KeyError:
+            related_id = intids.register(related)
+        doc.relatedItems = [RelationValue(related_id)]
+
+        report = self._copy(doc, ["es"])
+
+        translated = ITranslationManager(doc).get_translation("es")
+        related_es = ITranslationManager(related).get_translation("es")
+        self.assertEqual([r.status for r in report.successes], ["created"])
+        self.assertEqual(len(translated.relatedItems), 1)
+        # the relation was remapped to the Spanish translation of the target...
+        self.assertEqual(translated.relatedItems[0].to_object, related_es)
+        # ...and not left pointing at the source-language object
+        self.assertNotEqual(translated.relatedItems[0].to_object, related)
+
     def test_copy_reports_skipped_lif(self):
         brains = self.portal.portal_catalog(portal_type="LIF")
         self.assertTrue(brains, "No LIF found in the test fixture")
@@ -343,7 +370,7 @@ class TestCopier(unittest.TestCase):
     def test_copy_records_a_field_failure_and_rolls_back(self):
         doc = self._create_document(title="Hello")
 
-        def explode(self, source, target, key, field=None, translatable=True):
+        def explode(self, source, target, key, field=None):
             raise ValueError(f"cannot copy {key}")
 
         with mock.patch.object(ContentCopier, "change_content", explode):
@@ -697,20 +724,30 @@ class TestTranslateOnCopy(unittest.TestCase):
         self.assertEqual(translated.text.raw, "<p>Hello</p>")
         self.assertEqual(self.service.calls, [])
 
-    def test_language_independent_field_is_not_translated(self):
+    def test_language_independent_field_is_not_copied(self):
         doc = self._document(title="Hello", description="World")
         field = IBasic["title"]
         alsoProvides(field, ILanguageIndependentField)
+        copied_keys = []
+        original = ContentCopier.change_content
+
+        def record(self, source, target, key, schema_field=None):
+            copied_keys.append(key)
+            return original(self, source, target, key, schema_field)
+
         try:
-            ContentCopier(doc).copy(["es"], include_context=True, translate=True)
+            with mock.patch.object(ContentCopier, "change_content", record):
+                ContentCopier(doc).copy(["es"], include_context=True, translate=True)
         finally:
             noLongerProvides(field, ILanguageIndependentField)
 
+        # the language-independent title is left to plone.app.multilingual
+        self.assertNotIn("title", copied_keys)
+        # an ordinary field on the same object is copied and translated
+        self.assertIn("description", copied_keys)
         translated = ITranslationManager(doc).get_translation("es")
-        # the language-independent title is copied, not translated
-        self.assertEqual(translated.title, "Hello")
-        # an ordinary field on the same object is translated
         self.assertEqual(translated.description, "[es] World")
+        self.assertEqual(translated.title, "Hello")
 
     def test_empty_values_are_not_translated(self):
         doc = self._document(title="Hello", description="")

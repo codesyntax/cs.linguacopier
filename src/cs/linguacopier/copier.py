@@ -27,6 +27,7 @@ from zope.schema import getFieldsInOrder
 
 import transaction
 
+
 log = getLogger("cs.linguacopier.copier")
 
 # TODO: Generalize these lists to something editable
@@ -238,15 +239,20 @@ class ContentCopier:
                     # skip language
                     log.info("Skipped %s", name)
                     continue
+                if ILanguageIndependentField.providedBy(schema_field):
+                    # Language-independent fields are shared across
+                    # translations: plone.app.multilingual copies them (remapping
+                    # relations) when a translation is created and keeps them in
+                    # sync afterwards, so the copier leaves them alone.
+                    continue
                 self.change_content(
                     source_adapter,
                     target_adapter,
                     name,
                     None if index else schema_field,
-                    translatable=not ILanguageIndependentField.providedBy(schema_field),
                 )
 
-    def change_content(self, source, target, key, field=None, translatable=True):
+    def change_content(self, source, target, key, field=None):
         source_value = getattr(source, key)
         value = getattr(source_value, "raw", source_value)
         if isinstance(field, RelationList):
@@ -266,10 +272,9 @@ class ContentCopier:
                             to_id = intids.register(related_element_translation)
                         related_translations.append(RelationValue(to_id))
             value = related_translations
-        if self.translate and translatable and isinstance(value, str) and value:
+        if self.translate and isinstance(value, str) and value:
             # Scalars and rich text raw HTML are both plain strings here; the
-            # original value is kept when the service returns nothing. Fields
-            # marked language-independent are copied but never translated.
+            # original value is kept when the service returns nothing.
             self._eligible_fields += 1
             translated_value = self._translate_value(value)
             if translated_value is not None:
