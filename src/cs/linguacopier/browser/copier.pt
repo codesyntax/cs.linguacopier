@@ -60,12 +60,37 @@
         </tbody>
       </table>
 
+      <table class="table table-striped listing linguacopier-report-translations"
+             tal:define="
+               translations view/translation_counts;
+             "
+             tal:condition="view/show_translation"
+      >
+        <thead>
+          <tr>
+            <th i18n:translate="">Translated</th>
+            <th i18n:translate="">Partial</th>
+            <th i18n:translate="">Not translated</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td tal:content="translations/translated">0</td>
+            <td tal:content="translations/partial">0</td>
+            <td tal:content="translations/not_translated">0</td>
+          </tr>
+        </tbody>
+      </table>
+
       <table class="table table-striped listing linguacopier-report-items">
         <thead>
           <tr>
             <th i18n:translate="">Object</th>
             <th i18n:translate="">Language</th>
             <th i18n:translate="">Status</th>
+            <th tal:condition="view/show_translation"
+                i18n:translate=""
+            >Translation</th>
             <th i18n:translate="">Detail</th>
           </tr>
         </thead>
@@ -80,6 +105,9 @@
             </td>
             <td tal:content="row/language">es</td>
             <td tal:content="python: view.status_label(row['status'])">created</td>
+            <td tal:condition="view/show_translation"
+                tal:content="python: view.translation_label(row['translation'])"
+            >translated</td>
             <td tal:content="row/message">message</td>
           </tr>
         </tbody>

@@ -4,7 +4,7 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
-"POT-Creation-Date: 2026-10-02 10:33+0000\n"
+"POT-Creation-Date: 2026-10-02 13:08+0000\n"
 "PO-Revision-Date: 2026-10-02 11:28+0200\n"
 "Last-Translator: Mikel Larreategi <mlarreategi@codesyntax.com>\n"
 "Language-Team: English\n"
@@ -18,11 +18,11 @@ msgstr ""
 "Domain: cs.linguacopier\n"
 "Language: en\n"
 
-#: cs/linguacopier/browser/copier.py:143
+#: cs/linguacopier/browser/copier.py:171
 msgid "Contents copied successfully"
 msgstr "Contents copied successfully"
 
-#: cs/linguacopier/browser/copier.py:117
+#: cs/linguacopier/browser/copier.py:145
 msgid "Copy content"
 msgstr "Copy content"
 
@@ -30,16 +30,16 @@ msgstr "Copy content"
 msgid "Copy report"
 msgstr "Copy report"
 
-#: cs/linguacopier/browser/copier.py:101
+#: cs/linguacopier/browser/copier.py:126
 msgid "Copy the contents of this objects and its subobjects to the selected language/country"
 msgstr "Copy the contents of this objects and its subobjects to the selected language/country"
 
 #: cs/linguacopier/browser/copier.pt:47
-#: cs/linguacopier/browser/copier.py:171
+#: cs/linguacopier/browser/copier.py:208
 msgid "Created"
 msgstr "Created"
 
-#: cs/linguacopier/browser/copier.pt:69
+#: cs/linguacopier/browser/copier.pt:94
 msgid "Detail"
 msgstr "Detail"
 
@@ -48,27 +48,27 @@ msgid "Export as CSV"
 msgstr "Export as CSV"
 
 #: cs/linguacopier/browser/copier.pt:50
-#: cs/linguacopier/browser/copier.py:174
+#: cs/linguacopier/browser/copier.py:211
 msgid "Failed"
 msgstr "Failed"
 
-#: cs/linguacopier/browser/copier.pt:89
+#: cs/linguacopier/browser/copier.pt:117
 msgid "Go back to the form"
 msgstr "Go back to the form"
 
-#: cs/linguacopier/browser/copier.py:78
+#: cs/linguacopier/browser/copier.py:93
 msgid "If selected, all the subobjects of this object will also be translated"
 msgstr "If selected, all the subobjects of this object will also be translated"
 
-#: cs/linguacopier/browser/copier.py:71
+#: cs/linguacopier/browser/copier.py:86
 msgid "If selected, the context element will be translated"
 msgstr "If selected, the context element will be translated"
 
-#: cs/linguacopier/browser/copier.py:70
+#: cs/linguacopier/browser/copier.py:85
 msgid "Include context element?"
 msgstr "Include context element?"
 
-#: cs/linguacopier/browser/copier.py:77
+#: cs/linguacopier/browser/copier.py:92
 msgid "Include the contents?"
 msgstr "Include the contents?"
 
@@ -76,49 +76,76 @@ msgstr "Include the contents?"
 msgid "Installs the cs.linguacopier add-on."
 msgstr "Installs the cs.linguacopier add-on."
 
-#: cs/linguacopier/browser/copier.pt:67
+#: cs/linguacopier/browser/copier.pt:89
 msgid "Language"
 msgstr "Language"
 
-#: cs/linguacopier/browser/copier.pt:66
+#: cs/linguacopier/browser/copier.pt:73
+#: cs/linguacopier/browser/copier.py:218
+msgid "Not translated"
+msgstr "Not translated"
+
+#: cs/linguacopier/browser/copier.pt:88
 msgid "Object"
 msgstr "Object"
 
-#: cs/linguacopier/browser/copier.py:87
+#: cs/linguacopier/browser/copier.pt:72
+#: cs/linguacopier/browser/copier.py:217
+msgid "Partial"
+msgstr "Partial"
+
+#: cs/linguacopier/browser/copier.py:102
 msgid "Select into which languages the translation will be made"
 msgstr "Select into which languages the translation will be made"
 
 #: cs/linguacopier/browser/copier.pt:49
-#: cs/linguacopier/browser/copier.py:173
+#: cs/linguacopier/browser/copier.py:210
 msgid "Skipped"
 msgstr "Skipped"
 
-#: cs/linguacopier/browser/copier.py:142
+#: cs/linguacopier/browser/copier.py:170
 msgid "Some contents could not be copied"
 msgstr "Some contents could not be copied"
 
-#: cs/linguacopier/browser/copier.pt:68
+#: cs/linguacopier/browser/copier.pt:90
 msgid "Status"
 msgstr "Status"
 
-#: cs/linguacopier/browser/copier.py:86
+#: cs/linguacopier/browser/copier.py:101
 msgid "Target languages"
 msgstr "Target languages"
 
-#: cs/linguacopier/browser/copier.pt:114
+#: cs/linguacopier/browser/copier.pt:142
 msgid "There are no other languages to copy this content to."
 msgstr "There are no other languages to copy this content to."
 
-#: cs/linguacopier/browser/copier.py:123
+#: cs/linguacopier/browser/copier.py:155
 msgid "This field is required"
 msgstr "This field is required"
+
+#: cs/linguacopier/browser/copier.py:111
+msgid "Translate the copied content?"
+msgstr "Translate the copied content?"
+
+#: cs/linguacopier/browser/copier.py:112
+msgid "Translate the field values with the configured external translation service, when one is available."
+msgstr "Translate the field values with the configured external translation service, when one is available."
+
+#: cs/linguacopier/browser/copier.pt:71
+#: cs/linguacopier/browser/copier.py:216
+msgid "Translated"
+msgstr "Translated"
+
+#: cs/linguacopier/browser/copier.pt:91
+msgid "Translation"
+msgstr "Translation"
 
 #: cs/linguacopier/configure.zcml:35
 msgid "Uninstalls the cs.linguacopier add-on."
 msgstr "Uninstalls the cs.linguacopier add-on."
 
 #: cs/linguacopier/browser/copier.pt:48
-#: cs/linguacopier/browser/copier.py:172
+#: cs/linguacopier/browser/copier.py:209
 msgid "Updated"
 msgstr "Updated"
 

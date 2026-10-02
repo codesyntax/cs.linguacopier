@@ -5,15 +5,17 @@ the classic-UI form and the REST service, so it must not depend on z3c.form or
 the browser layer.
 """
 
+from cs.linguacopier import translation
 from cs.linguacopier.interfaces import ITranslateThings
 from dataclasses import dataclass
 from dataclasses import field
 from logging import getLogger
 from plone import api
+from plone.app.multilingual.dx.interfaces import ILanguageIndependentField
 from plone.app.multilingual.interfaces import ITranslationManager
 from plone.app.textfield.value import RichTextValue
-from plone.behavior.interfaces import IBehaviorAssignable
 from plone.dexterity.interfaces import IDexterityContent
+from plone.dexterity.utils import iterSchemata
 from plone.uuid.interfaces import IUUID
 from z3c.relationfield import RelationValue
 from z3c.relationfield.schema import RelationList
@@ -38,6 +40,9 @@ CHECKED_PROPERTIES = [
 CREATED = "created"
 UPDATED = "updated"
 SKIPPED = "skipped"
+TRANSLATED = "translated"
+PARTIAL = "partial"
+NOT_TRANSLATED = "not_translated"
 
 
 def sort_by_physical_path_length(x):
@@ -51,6 +56,8 @@ class CopyResult:
     target: object
     language: str
     status: str
+    #: Translation outcome when translation was requested; None otherwise.
+    translation: str = None
 
 
 @dataclass
@@ -73,14 +80,30 @@ class CopyReport:
 class ContentCopier:
     def __init__(self, context):
         self.context = context
+        self.translate = False
+        self._source_language = None
+        self._target_language = None
+        self._eligible_fields = 0
+        self._translated_fields = 0
 
-    def copy(self, target_languages, include_context=False, include_children=False):
+    def copy(
+        self,
+        target_languages,
+        include_context=False,
+        include_children=False,
+        translate=False,
+    ):
         """Copy the context and/or its descendants into ``target_languages``.
 
         Best-effort: each object is isolated in its own savepoint, so a failure
         on one is recorded and rolled back without aborting the rest. The copy
         owns no transaction; the caller (request) commits at the end.
+
+        When ``translate`` is true, text field values are translated with the
+        configured external translation service, keeping the original when
+        nothing can translate it.
         """
+        self.translate = translate
         report = CopyReport()
         for item in self._items_to_copy(include_context, include_children):
             for language in target_languages:
@@ -121,6 +144,10 @@ class ContentCopier:
                     language,
                 )
             translated = manager.get_translation(language)
+            self._source_language = item.Language()
+            self._target_language = language
+            self._eligible_fields = 0
+            self._translated_fields = 0
             self.copy_fields(item, translated)
             self.copy_other_properties(item, translated)
             self.copy_other_things(item, translated)
@@ -139,6 +166,7 @@ class ContentCopier:
                 target=translated,
                 language=language,
                 status=CREATED if created else UPDATED,
+                translation=self._translation_outcome(),
             )
         )
 
@@ -197,31 +225,35 @@ class ContentCopier:
             self.copy_fields_dexterity(source, target)
 
     def copy_fields_dexterity(self, source, target):
-        # Copy the content from the canonical fields
-        fields = schema.getFieldsInOrder(source.getTypeInfo().lookupSchema())
-        for key, value in fields:
-            if key.lower() in SKIPPED_FIELDS_DX:
-                # skip language
-                log.info("Skipped %s", key)
+        # iterSchemata yields the object's own schema first, then a schema per
+        # enabled behavior. Each field is seen once and its field object is
+        # available, which the language-independent check needs.
+        for index, field_schema in enumerate(iterSchemata(source)):
+            source_adapter = field_schema(source, None)
+            target_adapter = field_schema(target, None)
+            if source_adapter is None or target_adapter is None:
                 continue
-            self.change_content(source, target, key, value)
-
-        # Copy the contents from behaviors
-        behavior_assignable = IBehaviorAssignable(source)
-        if behavior_assignable:
-            behaviors = behavior_assignable.enumerateBehaviors()
-            for behavior in behaviors:
-                for key, value in getFieldsInOrder(behavior.interface):
-                    if key.lower() in SKIPPED_FIELDS_DX:
-                        # skip language
-                        log.info("Skipped %s", key)
-                        continue
-                    self.change_content_for_behavior(
-                        source, target, key, behavior.interface
-                    )
+            for name, schema_field in getFieldsInOrder(field_schema):
+                if name.lower() in SKIPPED_FIELDS_DX:
+                    # skip language
+                    log.info("Skipped %s", name)
+                    continue
+                if ILanguageIndependentField.providedBy(schema_field):
+                    # Language-independent fields are shared across
+                    # translations: plone.app.multilingual copies them (remapping
+                    # relations) when a translation is created and keeps them in
+                    # sync afterwards, so the copier leaves them alone.
+                    continue
+                self.change_content(
+                    source_adapter,
+                    target_adapter,
+                    name,
+                    None if index else schema_field,
+                )
 
     def change_content(self, source, target, key, field=None):
-        value = getattr(getattr(source, key), "raw", getattr(source, key))
+        source_value = getattr(source, key)
+        value = getattr(source_value, "raw", source_value)
         if isinstance(field, RelationList):
             intids = getUtility(IIntIds)
             target_language = target.Language()
@@ -239,7 +271,15 @@ class ContentCopier:
                             to_id = intids.register(related_element_translation)
                         related_translations.append(RelationValue(to_id))
             value = related_translations
-        if getattr(getattr(source, key), "raw", None) is not None:
+        if self.translate and isinstance(value, str) and value:
+            # Scalars and rich text raw HTML are both plain strings here; the
+            # original value is kept when the service returns nothing.
+            self._eligible_fields += 1
+            translated_value = self._translate_value(value)
+            if translated_value is not None:
+                self._translated_fields += 1
+                value = translated_value
+        if getattr(source_value, "raw", None) is not None:
             value = RichTextValue(value, "text/html", "text/x-html-safe")
 
         setattr(target, key, value)
@@ -252,7 +292,18 @@ class ContentCopier:
                 "/".join(target.context.getPhysicalPath()),
             )
 
-    def change_content_for_behavior(self, source, target, key, behavior):
-        behaviored_source = behavior(source)
-        behaviored_target = behavior(target)
-        self.change_content(behaviored_source, behaviored_target, key)
+    def _translate_value(self, value):
+        """Translate a value; return ``None`` when nothing translated it."""
+        return translation.translate(
+            value, self._source_language, self._target_language
+        )
+
+    def _translation_outcome(self):
+        """Three-valued outcome of translating one copied object."""
+        if not self.translate:
+            return None
+        if not self._eligible_fields or not self._translated_fields:
+            return NOT_TRANSLATED
+        if self._translated_fields == self._eligible_fields:
+            return TRANSLATED
+        return PARTIAL
