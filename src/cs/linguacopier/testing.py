@@ -98,8 +98,10 @@ class FakeTranslationService:
 
     order = 1
 
-    def __init__(self):
+    def __init__(self, skip=()):
         self.calls = []
+        #: Values the service refuses to translate, to fake a partial result.
+        self.skip = set(skip)
 
     def is_available(self):
         return True
@@ -109,4 +111,6 @@ class FakeTranslationService:
 
     def translate_content(self, content, source_language, target_language):
         self.calls.append((content, source_language, target_language))
+        if content in self.skip:
+            return None
         return f"[{target_language}] {content}"

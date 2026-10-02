@@ -33,14 +33,16 @@ class CopyContentToLanguage(Service):
                 include_children=include_children,
                 translate=translate,
             )
-            copied = [
-                {
+            copied = []
+            for result in report.successes:
+                item = {
                     "@id": result.target.absolute_url(),
                     "language": result.language,
                     "status": result.status,
                 }
-                for result in report.successes
-            ]
+                if result.translation:
+                    item["translation"] = result.translation
+                copied.append(item)
             errors = [
                 {
                     "@id": error.source.absolute_url(),

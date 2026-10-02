@@ -39,7 +39,7 @@
       return;
     }
     var tables = report.querySelectorAll(
-      ".linguacopier-report-counts, .linguacopier-report-items"
+      ".linguacopier-report-counts, .linguacopier-report-translations, .linguacopier-report-items"
     );
     if (!tables.length) {
       return;

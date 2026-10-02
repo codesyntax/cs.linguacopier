@@ -41,6 +41,9 @@ CHECKED_PROPERTIES = [
 CREATED = "created"
 UPDATED = "updated"
 SKIPPED = "skipped"
+TRANSLATED = "translated"
+PARTIAL = "partial"
+NOT_TRANSLATED = "not_translated"
 
 
 def sort_by_physical_path_length(x):
@@ -54,6 +57,8 @@ class CopyResult:
     target: object
     language: str
     status: str
+    #: Translation outcome when translation was requested; None otherwise.
+    translation: str = None
 
 
 @dataclass
@@ -79,6 +84,8 @@ class ContentCopier:
         self.translate = False
         self._source_language = None
         self._target_language = None
+        self._eligible_fields = 0
+        self._translated_fields = 0
 
     def copy(
         self,
@@ -140,6 +147,8 @@ class ContentCopier:
             translated = manager.get_translation(language)
             self._source_language = item.Language()
             self._target_language = language
+            self._eligible_fields = 0
+            self._translated_fields = 0
             self.copy_fields(item, translated)
             self.copy_other_properties(item, translated)
             self.copy_other_things(item, translated)
@@ -158,6 +167,7 @@ class ContentCopier:
                 target=translated,
                 language=language,
                 status=CREATED if created else UPDATED,
+                translation=self._translation_outcome(),
             )
         )
 
@@ -261,7 +271,11 @@ class ContentCopier:
             # Scalars and rich text raw HTML are both plain strings here; the
             # original value is kept when the service returns nothing. Fields
             # marked language-independent are copied but never translated.
-            value = self._translate_value(value)
+            self._eligible_fields += 1
+            translated_value = self._translate_value(value)
+            if translated_value is not None:
+                self._translated_fields += 1
+                value = translated_value
         if getattr(source_value, "raw", None) is not None:
             value = RichTextValue(value, "text/html", "text/x-html-safe")
 
@@ -276,8 +290,17 @@ class ContentCopier:
             )
 
     def _translate_value(self, value):
-        """Translate a scalar value, keeping the original when nothing does."""
-        translated = translation.translate(
+        """Translate a value; return ``None`` when nothing translated it."""
+        return translation.translate(
             value, self._source_language, self._target_language
         )
-        return translated if translated else value
+
+    def _translation_outcome(self):
+        """Three-valued outcome of translating one copied object."""
+        if not self.translate:
+            return None
+        if not self._eligible_fields or not self._translated_fields:
+            return NOT_TRANSLATED
+        if self._translated_fields == self._eligible_fields:
+            return TRANSLATED
+        return PARTIAL

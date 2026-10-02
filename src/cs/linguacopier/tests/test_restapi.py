@@ -127,6 +127,95 @@ class TestCopyContentTo(unittest.TestCase):
         translated = ITranslationManager(doc).get_translation("es")
         self.assertEqual(translated.title, "Hello")
 
+    @unittest.skipUnless(
+        IExternalTranslationService, "external translation API not installed"
+    )
+    def test_translation_outcome_translated(self):
+        doc = self._create_document(title="Hello")
+        service = FakeTranslationService()
+        gsm = getGlobalSiteManager()
+        gsm.registerUtility(
+            service, IExternalTranslationService, name="test-translator"
+        )
+        try:
+            response = self.api_session.post(
+                self._endpoint(doc),
+                json={
+                    "target_languages": ["es"],
+                    "include_context": True,
+                    "translate": True,
+                },
+            )
+        finally:
+            gsm.unregisterUtility(
+                service, IExternalTranslationService, name="test-translator"
+            )
+        self._abort()
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["copied"][0]["translation"], "translated")
+
+    @unittest.skipUnless(
+        IExternalTranslationService, "external translation API not installed"
+    )
+    def test_translation_outcome_partial(self):
+        doc = self._create_document(title="Hello")
+        doc.description = "World"
+        transaction.commit()
+        service = FakeTranslationService(skip={"World"})
+        gsm = getGlobalSiteManager()
+        gsm.registerUtility(
+            service, IExternalTranslationService, name="test-translator"
+        )
+        try:
+            response = self.api_session.post(
+                self._endpoint(doc),
+                json={
+                    "target_languages": ["es"],
+                    "include_context": True,
+                    "translate": True,
+                },
+            )
+        finally:
+            gsm.unregisterUtility(
+                service, IExternalTranslationService, name="test-translator"
+            )
+        self._abort()
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["copied"][0]["translation"], "partial")
+
+    @unittest.skipUnless(
+        IExternalTranslationService, "external translation API not installed"
+    )
+    def test_translation_outcome_not_translated_without_service(self):
+        doc = self._create_document(title="Hello")
+
+        response = self.api_session.post(
+            self._endpoint(doc),
+            json={
+                "target_languages": ["es"],
+                "include_context": True,
+                "translate": True,
+            },
+        )
+        self._abort()
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["copied"][0]["translation"], "not_translated")
+
+    def test_no_translation_outcome_when_not_requested(self):
+        doc = self._create_document(title="Hello")
+
+        response = self.api_session.post(
+            self._endpoint(doc),
+            json={"target_languages": ["es"], "include_context": True},
+        )
+        self._abort()
+
+        self.assertEqual(response.status_code, 200)
+        self.assertNotIn("translation", response.json()["copied"][0])
+
     def test_copy_context_to_language(self):
         doc = self._create_document(title="Hello")
 
