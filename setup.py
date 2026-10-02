@@ -65,6 +65,7 @@ setup(
             "plone.browserlayer",
             "Products.statusmessages",
             "plone.app.relationfield",
+            "plone.restapi",
         ],
     },
     entry_points="""

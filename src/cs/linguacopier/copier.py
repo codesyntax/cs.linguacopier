@@ -1,0 +1,218 @@
+"""Browser-agnostic content copier.
+
+Copies content (and, optionally, its subobjects) into other languages. Shared by
+the classic-UI form and the REST service, so it must not depend on z3c.form or
+the browser layer.
+"""
+
+from cs.linguacopier.interfaces import ITranslateThings
+from logging import getLogger
+from plone import api
+from plone.app.multilingual.interfaces import ITranslationManager
+from plone.app.textfield.value import RichTextValue
+from plone.behavior.interfaces import IBehaviorAssignable
+from plone.dexterity.interfaces import IDexterityContent
+from plone.uuid.interfaces import IUUID
+from z3c.relationfield import RelationValue
+from z3c.relationfield.schema import RelationList
+from zope import schema
+from zope.component import getAdapters
+from zope.component import getUtility
+from zope.intid.interfaces import IIntIds
+from zope.schema import getFieldsInOrder
+
+import transaction
+
+
+log = getLogger("cs.linguacopier.copier")
+
+# TODO: Generalize these lists to something editable
+SKIPPED_PORTAL_TYPES = ["LIF"]
+SKIPPED_FIELDS_AT = ["language"]
+SKIPPED_FIELDS_DX = ["language", "id"]
+CHECKED_PROPERTIES = [
+    {"name": "layout", "type": "string"},
+    {"name": "default_page", "type": "string"},
+]
+
+
+def sort_by_physical_path_length(x):
+    return len(x.getPhysicalPath())
+
+
+class ContentCopier:
+    def __init__(self, context):
+        self.context = context
+
+    def copy_related_fields(self, obj, target_languages):
+        # XXX: Where is this used?
+        try:
+            fields = schema.getFieldsInOrder(obj.getTypeInfo().lookupSchema())
+        except AttributeError as e:
+            log.info("Error: %s" % "/".join(obj.getPhysicalPath()))
+            log.exception(e)
+
+        pcat = api.portal.get_tool("portal_catalog")
+        for key, value in fields:
+            value = value.get(obj)
+            if isinstance(value, list):
+                manager = ITranslationManager(obj)
+                for language in target_languages:
+                    translated_obj = manager.get_translation(language)
+                    uid_list = []
+
+                    for uid in value:
+                        element = pcat(UID=uid, Language=obj.Language())
+                        if element:
+                            manager = ITranslationManager(
+                                element[0].getObject()
+                            )  # noqa
+                            element_trans = manager.get_translation(language)
+                            if element_trans:
+                                uid_list.append(IUUID(element_trans))
+                    if uid_list:
+                        setattr(translated_obj, key, uid_list)
+                        translated_obj.reindexObject()
+
+    def copy_contents_of(self, item, target_languages):
+        if item.portal_type in SKIPPED_PORTAL_TYPES:
+            log.info("Item skipped: {}".format("/".join(item.getPhysicalPath())))
+        else:
+            for language in target_languages:
+                manager = ITranslationManager(item)
+                if not manager.has_translation(language):
+                    manager.add_translation(language)
+                    log.info(
+                        "Created translation for {}: {}".format(
+                            "/".join(item.getPhysicalPath()), language
+                        )
+                    )
+                    transaction.commit()
+                translated = manager.get_translation(language)
+                self.copy_fields(item, translated)
+                self.copy_seo_properties(item, translated)
+                self.copy_other_properties(item, translated)
+                self.copy_other_things(item, translated)
+                translated.reindexObject()
+
+    def copy_other_things(self, original, translated):
+        """Use an adapter lookup so developers can extend the copier"""
+        adapters = getAdapters((original, translated), ITranslateThings)
+        for _name, adapter in adapters:
+            adapter.translate()
+
+    def copy_other_properties(self, item, translated):
+        # TODO: extract this to an adapter of ITranslateThings
+        # TODO: Generalize this list
+        for property_item in CHECKED_PROPERTIES:
+            property_name = property_item.get("name")
+            property_type = property_item.get("type")
+            if item.hasProperty(property_name):
+                log.info(f"Copying property {property_name}")
+                if not translated.hasProperty(property_name):
+                    translated.manage_addProperty(
+                        property_name, item.getProperty(property_name), property_type
+                    )
+                else:
+                    property_dict = {property_name: item.getProperty(property_name)}
+                    translated.manage_changeProperties(**property_dict)
+
+    def copy_fields(self, source, target):
+        if IDexterityContent.providedBy(source):
+            self.copy_fields_dexterity(source, target)
+
+    def copy_fields_dexterity(self, source, target):
+        # Copy the content from the canonical fields
+        try:
+            fields = schema.getFieldsInOrder(
+                source.getTypeInfo().lookupSchema()
+            )  # noqa
+        except AttributeError as e:
+            log.info("Error: %s" % "/".join(source.getPhysicalPath()))
+            log.exception(e)
+            return
+        for key, value in fields:
+            if key.lower() in SKIPPED_FIELDS_DX:
+                # skip language
+                log.info("Skipped %s" % key)
+                continue
+            self.change_content(source, target, key, value)
+
+        # Copy the contents from behaviors
+        behavior_assignable = IBehaviorAssignable(source)
+        if behavior_assignable:
+            behaviors = behavior_assignable.enumerateBehaviors()
+            for behavior in behaviors:
+                for key, value in getFieldsInOrder(behavior.interface):
+                    if key.lower() in SKIPPED_FIELDS_DX:
+                        # skip language
+                        log.info("Skipped %s" % key)
+                        continue
+                    self.change_content_for_behavior(
+                        source, target, key, behavior.interface
+                    )
+
+    def copy_seo_properties(self, source, target):
+        # TODO: extract this to an adapter of ITranslateThings
+        # Copy SEO properties added by quintagroup.seoptimizer
+        for k, v in source.propertyItems():
+            if k.startswith("qSEO_"):
+                if target.hasProperty(k):
+                    target.manage_changeProperties({k: source.getProperty(k)})
+                    path = "/".join(source.getPhysicalPath())
+                    log.info(f"Changed property {k} for {path}")
+                else:
+                    if k == "qSEO_keywords":
+                        target.manage_addProperty(k, source.getProperty(k), "lines")
+                    else:
+                        target.manage_addProperty(k, source.getProperty(k), "string")
+
+    def change_content(self, source, target, key, field=None):
+        try:
+            value = getattr(getattr(source, key), "raw", getattr(source, key))
+            if isinstance(field, RelationList):
+                intids = getUtility(IIntIds)
+                target_language = target.Language()
+                related_translations = []
+                for relation_field in value:
+                    related_element = relation_field.to_object
+                    if related_element:
+                        related_element_translation = ITranslationManager(
+                            related_element
+                        ).get_translation(target_language)
+                        if related_element_translation:
+                            try:
+                                to_id = intids.getId(related_element_translation)
+                            except KeyError:
+                                to_id = intids.register(related_element_translation)
+                            related_translations.append(RelationValue(to_id))
+                value = related_translations
+        except Exception as e:
+            log.info(f"Error setting references attribute {key} on {target}")
+            log.exception(e)
+        try:
+            if getattr(getattr(source, key), "raw", None) is not None:
+                value = RichTextValue(value, "text/html", "text/x-html-safe")
+
+            setattr(target, key, value)
+            if hasattr(source, "getPhysicalPath"):
+                log.info(
+                    "Set attribute {} in {}".format(
+                        key, "/".join(target.getPhysicalPath())
+                    )
+                )
+            else:
+                log.info(
+                    "Set attribute {} in {}".format(
+                        key, "/".join(target.context.getPhysicalPath())
+                    )
+                )
+
+        except Exception as e:
+            log.info(f"Error setting attribute {key} on {target}")
+            log.exception(e)
+
+    def change_content_for_behavior(self, source, target, key, behavior):
+        behaviored_source = behavior(source)
+        behaviored_target = behavior(target)
+        self.change_content(behaviored_source, behaviored_target, key)
