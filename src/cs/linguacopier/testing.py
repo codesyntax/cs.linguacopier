@@ -61,6 +61,28 @@ CS_LINGUACOPIER_FUNCTIONAL_TESTING = FunctionalTesting(
 )
 
 
+class CsLinguacopierRestApiLayer(PloneSandboxLayer):
+
+    defaultBases = (CS_LINGUACOPIER_FIXTURE,)
+
+    def setUpZope(self, app, configurationContext):
+        import plone.restapi
+
+        self.loadZCML(package=plone.restapi)
+
+    def setUpPloneSite(self, portal):
+        applyProfile(portal, "plone.restapi:default")
+
+
+CS_LINGUACOPIER_RESTAPI_FIXTURE = CsLinguacopierRestApiLayer()
+
+
+CS_LINGUACOPIER_RESTAPI_FUNCTIONAL_TESTING = FunctionalTesting(
+    bases=(CS_LINGUACOPIER_RESTAPI_FIXTURE, zope.WSGI_SERVER_FIXTURE),
+    name="CsLinguacopierRestApiLayer:FunctionalTesting",
+)
+
+
 CS_LINGUACOPIER_ACCEPTANCE_TESTING = FunctionalTesting(
     bases=(
         CS_LINGUACOPIER_FIXTURE,

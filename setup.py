@@ -66,6 +66,7 @@ setup(
             "Products.statusmessages",
             "plone.app.relationfield",
             "plone.restapi",
+            "collective.MockMailHost",
         ],
     },
     entry_points="""

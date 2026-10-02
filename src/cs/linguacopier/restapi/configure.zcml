@@ -1,0 +1,21 @@
+<configure
+    xmlns="http://namespaces.zope.org/zope"
+    xmlns:plone="http://namespaces.plone.org/plone"
+    i18n_domain="cs.linguacopier"
+    >
+
+  <!-- Make the plone:service directive available regardless of ZCML load order -->
+  <include
+      package="plone.rest"
+      file="meta.zcml"
+      />
+
+  <plone:service
+      method="POST"
+      factory=".service.CopyContentToLanguage"
+      for="*"
+      permission="cmf.ManagePortal"
+      name="@copy-content-to"
+      />
+
+</configure>
