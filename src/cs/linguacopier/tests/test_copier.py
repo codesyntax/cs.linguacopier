@@ -21,7 +21,6 @@ from plone.app.dexterity.behaviors.metadata import IBasic
 from plone.app.multilingual.dx.interfaces import ILanguageIndependentField
 from plone.app.multilingual.interfaces import ITranslationManager
 
-
 try:
     from plone.app.multilingual.interfaces import IExternalTranslationService
 except ImportError:

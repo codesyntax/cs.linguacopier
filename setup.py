@@ -40,11 +40,10 @@ setup(
     zip_safe=False,
     install_requires=[
         "plone.api",
-        "plone.base",
         "plone.app.multilingual",
         "plone.app.textfield",
         "plone.app.z3cform",
-        "plone.behavior",
+        "plone.base",
         "plone.dexterity",
         "plone.protect",
         "plone.uuid",
@@ -56,17 +55,15 @@ setup(
     ],
     extras_require={
         "test": [
-            "plone.app.testing",
-            # Plone KGS does not use this version, because it would break
-            # Remove if your package shall be part of coredev.
-            # plone_coredev tests as of 2016-04-01.
-            "plone.testing",
             "plone.app.contenttypes",
-            "plone.app.robotframework[debug]",
-            "plone.browserlayer",
-            "Products.statusmessages",
+            "plone.app.dexterity",
             "plone.app.relationfield",
+            "plone.app.robotframework[debug]",
+            "plone.app.testing",
+            "plone.browserlayer",
             "plone.restapi",
+            "plone.testing",
+            "Products.statusmessages",
             "requests",
         ],
     },

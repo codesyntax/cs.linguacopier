@@ -19,7 +19,6 @@ from zope import schema
 from zope.interface import Interface
 from zope.interface import Invalid
 
-
 log = getLogger("cs.linguacopier.copier")
 
 #: Display-only status for an object the copier could not copy.

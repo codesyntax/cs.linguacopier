@@ -8,7 +8,6 @@ rest of the package never imports the new API directly.
 
 from logging import getLogger
 
-
 log = getLogger("cs.linguacopier.translation")
 
 try:

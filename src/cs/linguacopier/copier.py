@@ -27,7 +27,6 @@ from zope.schema import getFieldsInOrder
 
 import transaction
 
-
 log = getLogger("cs.linguacopier.copier")
 
 # TODO: Generalize these lists to something editable

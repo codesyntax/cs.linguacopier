@@ -5,7 +5,6 @@ from cs.linguacopier.testing import CS_LINGUACOPIER_RESTAPI_FUNCTIONAL_TESTING
 from cs.linguacopier.testing import FakeTranslationService
 from plone.app.multilingual.interfaces import ITranslationManager
 
-
 try:
     from plone.app.multilingual.interfaces import IExternalTranslationService
 except ImportError:
