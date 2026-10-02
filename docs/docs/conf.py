@@ -5,10 +5,8 @@
 # -- Path setup --------------------------------------------------------------
 
 from datetime import datetime
-
 from packaging.version import Version
 from plone_sphinx_theme import __version__
-
 
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
