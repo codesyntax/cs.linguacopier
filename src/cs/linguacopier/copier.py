@@ -11,10 +11,11 @@ from dataclasses import dataclass
 from dataclasses import field
 from logging import getLogger
 from plone import api
+from plone.app.multilingual.dx.interfaces import ILanguageIndependentField
 from plone.app.multilingual.interfaces import ITranslationManager
 from plone.app.textfield.value import RichTextValue
-from plone.behavior.interfaces import IBehaviorAssignable
 from plone.dexterity.interfaces import IDexterityContent
+from plone.dexterity.utils import iterSchemata
 from plone.uuid.interfaces import IUUID
 from z3c.relationfield import RelationValue
 from z3c.relationfield.schema import RelationList
@@ -215,30 +216,28 @@ class ContentCopier:
             self.copy_fields_dexterity(source, target)
 
     def copy_fields_dexterity(self, source, target):
-        # Copy the content from the canonical fields
-        fields = schema.getFieldsInOrder(source.getTypeInfo().lookupSchema())
-        for key, value in fields:
-            if key.lower() in SKIPPED_FIELDS_DX:
-                # skip language
-                log.info("Skipped %s", key)
+        # iterSchemata yields the object's own schema first, then a schema per
+        # enabled behavior. Each field is seen once and its field object is
+        # available, which the language-independent check needs.
+        for index, field_schema in enumerate(iterSchemata(source)):
+            source_adapter = field_schema(source, None)
+            target_adapter = field_schema(target, None)
+            if source_adapter is None or target_adapter is None:
                 continue
-            self.change_content(source, target, key, value)
+            for name, schema_field in getFieldsInOrder(field_schema):
+                if name.lower() in SKIPPED_FIELDS_DX:
+                    # skip language
+                    log.info("Skipped %s", name)
+                    continue
+                self.change_content(
+                    source_adapter,
+                    target_adapter,
+                    name,
+                    None if index else schema_field,
+                    translatable=not ILanguageIndependentField.providedBy(schema_field),
+                )
 
-        # Copy the contents from behaviors
-        behavior_assignable = IBehaviorAssignable(source)
-        if behavior_assignable:
-            behaviors = behavior_assignable.enumerateBehaviors()
-            for behavior in behaviors:
-                for key, value in getFieldsInOrder(behavior.interface):
-                    if key.lower() in SKIPPED_FIELDS_DX:
-                        # skip language
-                        log.info("Skipped %s", key)
-                        continue
-                    self.change_content_for_behavior(
-                        source, target, key, behavior.interface
-                    )
-
-    def change_content(self, source, target, key, field=None):
+    def change_content(self, source, target, key, field=None, translatable=True):
         source_value = getattr(source, key)
         value = getattr(source_value, "raw", source_value)
         if isinstance(field, RelationList):
@@ -258,9 +257,10 @@ class ContentCopier:
                             to_id = intids.register(related_element_translation)
                         related_translations.append(RelationValue(to_id))
             value = related_translations
-        if self.translate and isinstance(value, str) and value:
+        if self.translate and translatable and isinstance(value, str) and value:
             # Scalars and rich text raw HTML are both plain strings here; the
-            # original value is kept when the service returns nothing.
+            # original value is kept when the service returns nothing. Fields
+            # marked language-independent are copied but never translated.
             value = self._translate_value(value)
         if getattr(source_value, "raw", None) is not None:
             value = RichTextValue(value, "text/html", "text/x-html-safe")
@@ -274,11 +274,6 @@ class ContentCopier:
                 key,
                 "/".join(target.context.getPhysicalPath()),
             )
-
-    def change_content_for_behavior(self, source, target, key, behavior):
-        behaviored_source = behavior(source)
-        behaviored_target = behavior(target)
-        self.change_content(behaviored_source, behaviored_target, key)
 
     def _translate_value(self, value):
         """Translate a scalar value, keeping the original when nothing does."""
