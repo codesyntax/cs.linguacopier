@@ -1,2 +1,0 @@
-Rename the ``@@copy-content-to`` form fields to ``include_context`` and
-``include_children``, matching the new REST API parameter names.

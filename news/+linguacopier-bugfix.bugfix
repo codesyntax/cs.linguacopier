@@ -1,2 +1,0 @@
-Fix ``copy_other_things`` adapter lookup and updating of existing
-properties in ``copy_other_properties``.
