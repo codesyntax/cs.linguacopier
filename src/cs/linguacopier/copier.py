@@ -147,7 +147,7 @@ class ContentCopier:
         try:
             fields = schema.getFieldsInOrder(obj.getTypeInfo().lookupSchema())
         except AttributeError as e:
-            log.info("Error: %s" % "/".join(obj.getPhysicalPath()))
+            log.info("Error: %s", "/".join(obj.getPhysicalPath()))
             log.exception(e)
 
         pcat = api.portal.get_tool("portal_catalog")
@@ -185,7 +185,7 @@ class ContentCopier:
             property_name = property_item.get("name")
             property_type = property_item.get("type")
             if item.hasProperty(property_name):
-                log.info(f"Copying property {property_name}")
+                log.info("Copying property %s", property_name)
                 if not translated.hasProperty(property_name):
                     translated.manage_addProperty(
                         property_name, item.getProperty(property_name), property_type
@@ -204,7 +204,7 @@ class ContentCopier:
         for key, value in fields:
             if key.lower() in SKIPPED_FIELDS_DX:
                 # skip language
-                log.info("Skipped %s" % key)
+                log.info("Skipped %s", key)
                 continue
             self.change_content(source, target, key, value)
 
@@ -216,7 +216,7 @@ class ContentCopier:
                 for key, value in getFieldsInOrder(behavior.interface):
                     if key.lower() in SKIPPED_FIELDS_DX:
                         # skip language
-                        log.info("Skipped %s" % key)
+                        log.info("Skipped %s", key)
                         continue
                     self.change_content_for_behavior(
                         source, target, key, behavior.interface
@@ -246,14 +246,12 @@ class ContentCopier:
 
         setattr(target, key, value)
         if hasattr(source, "getPhysicalPath"):
-            log.info(
-                "Set attribute {} in {}".format(key, "/".join(target.getPhysicalPath()))
-            )
+            log.info("Set attribute %s in %s", key, "/".join(target.getPhysicalPath()))
         else:
             log.info(
-                "Set attribute {} in {}".format(
-                    key, "/".join(target.context.getPhysicalPath())
-                )
+                "Set attribute %s in %s",
+                key,
+                "/".join(target.context.getPhysicalPath()),
             )
 
     def change_content_for_behavior(self, source, target, key, behavior):
