@@ -12,7 +12,7 @@ long_description = "\n\n".join(
 
 setup(
     name="cs.linguacopier",
-    version="2.0",
+    version="2.1.dev0",
     description="Content-copier useful to copy basic content from one language-tree to another to start working with the whole content-tree",
     long_description=long_description,
     long_description_content_type="text/markdown",
