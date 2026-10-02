@@ -6,6 +6,8 @@ the browser layer.
 """
 
 from cs.linguacopier.interfaces import ITranslateThings
+from dataclasses import dataclass
+from dataclasses import field
 from logging import getLogger
 from plone import api
 from plone.app.multilingual.interfaces import ITranslationManager
@@ -35,14 +37,113 @@ CHECKED_PROPERTIES = [
     {"name": "default_page", "type": "string"},
 ]
 
+CREATED = "created"
+UPDATED = "updated"
+SKIPPED = "skipped"
+
 
 def sort_by_physical_path_length(x):
     return len(x.getPhysicalPath())
 
 
+@dataclass
+class CopyResult:
+    """One successfully copied (or intentionally skipped) object."""
+
+    target: object
+    language: str
+    status: str
+
+
+@dataclass
+class CopyError:
+    """One object that could not be copied, and why."""
+
+    source: object
+    language: str
+    message: str
+
+
+@dataclass
+class CopyReport:
+    """Outcome of a copy: what was copied/skipped and what failed."""
+
+    successes: list[CopyResult] = field(default_factory=list)
+    errors: list[CopyError] = field(default_factory=list)
+
+
 class ContentCopier:
     def __init__(self, context):
         self.context = context
+
+    def copy(self, target_languages, include_context=False, include_children=False):
+        """Copy the context and/or its descendants into ``target_languages``.
+
+        Best-effort: each object is isolated in its own savepoint, so a failure
+        on one is recorded and rolled back without aborting the rest. The copy
+        owns no transaction; the caller (request) commits at the end.
+        """
+        report = CopyReport()
+        for item in self._items_to_copy(include_context, include_children):
+            for language in target_languages:
+                self._copy_one(item, language, report)
+        return report
+
+    def _items_to_copy(self, include_context, include_children):
+        items = []
+        if include_context:
+            items.append(self.context)
+        if include_children:
+            pcat = api.portal.get_tool("portal_catalog")
+            brains = pcat(path="/".join(self.context.getPhysicalPath()))
+            descendants = [brain.getObject() for brain in brains]
+            descendants = [obj for obj in descendants if obj != self.context]
+            descendants.sort(key=sort_by_physical_path_length)
+            items.extend(descendants)
+        return items
+
+    def _copy_one(self, item, language, report):
+        if item.portal_type in SKIPPED_PORTAL_TYPES:
+            log.info("Item skipped: %s", "/".join(item.getPhysicalPath()))
+            report.successes.append(
+                CopyResult(target=item, language=language, status=SKIPPED)
+            )
+            return
+
+        savepoint = None
+        try:
+            savepoint = transaction.savepoint()
+            manager = ITranslationManager(item)
+            created = not manager.has_translation(language)
+            if created:
+                manager.add_translation(language)
+                log.info(
+                    "Created translation for %s: %s",
+                    "/".join(item.getPhysicalPath()),
+                    language,
+                )
+            translated = manager.get_translation(language)
+            self.copy_fields(item, translated)
+            self.copy_seo_properties(item, translated)
+            self.copy_other_properties(item, translated)
+            self.copy_other_things(item, translated)
+            translated.reindexObject()
+        except Exception as e:
+            if savepoint is not None:
+                savepoint.rollback()
+            log.exception(e)
+            report.errors.append(
+                CopyError(source=item, language=language, message=str(e))
+            )
+            return
+
+        report.successes.append(
+            CopyResult(
+                target=translated,
+                language=language,
+                status=CREATED if created else UPDATED,
+            )
+        )
 
     def copy_related_fields(self, obj, target_languages):
         # XXX: Where is this used?
@@ -74,27 +175,6 @@ class ContentCopier:
                         setattr(translated_obj, key, uid_list)
                         translated_obj.reindexObject()
 
-    def copy_contents_of(self, item, target_languages):
-        if item.portal_type in SKIPPED_PORTAL_TYPES:
-            log.info("Item skipped: {}".format("/".join(item.getPhysicalPath())))
-        else:
-            for language in target_languages:
-                manager = ITranslationManager(item)
-                if not manager.has_translation(language):
-                    manager.add_translation(language)
-                    log.info(
-                        "Created translation for {}: {}".format(
-                            "/".join(item.getPhysicalPath()), language
-                        )
-                    )
-                    transaction.commit()
-                translated = manager.get_translation(language)
-                self.copy_fields(item, translated)
-                self.copy_seo_properties(item, translated)
-                self.copy_other_properties(item, translated)
-                self.copy_other_things(item, translated)
-                translated.reindexObject()
-
     def copy_other_things(self, original, translated):
         """Use an adapter lookup so developers can extend the copier"""
         adapters = getAdapters((original, translated), ITranslateThings)
@@ -123,14 +203,7 @@ class ContentCopier:
 
     def copy_fields_dexterity(self, source, target):
         # Copy the content from the canonical fields
-        try:
-            fields = schema.getFieldsInOrder(
-                source.getTypeInfo().lookupSchema()
-            )  # noqa
-        except AttributeError as e:
-            log.info("Error: %s" % "/".join(source.getPhysicalPath()))
-            log.exception(e)
-            return
+        fields = schema.getFieldsInOrder(source.getTypeInfo().lookupSchema())
         for key, value in fields:
             if key.lower() in SKIPPED_FIELDS_DX:
                 # skip language
@@ -168,49 +241,38 @@ class ContentCopier:
                         target.manage_addProperty(k, source.getProperty(k), "string")
 
     def change_content(self, source, target, key, field=None):
-        try:
-            value = getattr(getattr(source, key), "raw", getattr(source, key))
-            if isinstance(field, RelationList):
-                intids = getUtility(IIntIds)
-                target_language = target.Language()
-                related_translations = []
-                for relation_field in value:
-                    related_element = relation_field.to_object
-                    if related_element:
-                        related_element_translation = ITranslationManager(
-                            related_element
-                        ).get_translation(target_language)
-                        if related_element_translation:
-                            try:
-                                to_id = intids.getId(related_element_translation)
-                            except KeyError:
-                                to_id = intids.register(related_element_translation)
-                            related_translations.append(RelationValue(to_id))
-                value = related_translations
-        except Exception as e:
-            log.info(f"Error setting references attribute {key} on {target}")
-            log.exception(e)
-        try:
-            if getattr(getattr(source, key), "raw", None) is not None:
-                value = RichTextValue(value, "text/html", "text/x-html-safe")
+        value = getattr(getattr(source, key), "raw", getattr(source, key))
+        if isinstance(field, RelationList):
+            intids = getUtility(IIntIds)
+            target_language = target.Language()
+            related_translations = []
+            for relation_field in value:
+                related_element = relation_field.to_object
+                if related_element:
+                    related_element_translation = ITranslationManager(
+                        related_element
+                    ).get_translation(target_language)
+                    if related_element_translation:
+                        try:
+                            to_id = intids.getId(related_element_translation)
+                        except KeyError:
+                            to_id = intids.register(related_element_translation)
+                        related_translations.append(RelationValue(to_id))
+            value = related_translations
+        if getattr(getattr(source, key), "raw", None) is not None:
+            value = RichTextValue(value, "text/html", "text/x-html-safe")
 
-            setattr(target, key, value)
-            if hasattr(source, "getPhysicalPath"):
-                log.info(
-                    "Set attribute {} in {}".format(
-                        key, "/".join(target.getPhysicalPath())
-                    )
+        setattr(target, key, value)
+        if hasattr(source, "getPhysicalPath"):
+            log.info(
+                "Set attribute {} in {}".format(key, "/".join(target.getPhysicalPath()))
+            )
+        else:
+            log.info(
+                "Set attribute {} in {}".format(
+                    key, "/".join(target.context.getPhysicalPath())
                 )
-            else:
-                log.info(
-                    "Set attribute {} in {}".format(
-                        key, "/".join(target.context.getPhysicalPath())
-                    )
-                )
-
-        except Exception as e:
-            log.info(f"Error setting attribute {key} on {target}")
-            log.exception(e)
+            )
 
     def change_content_for_behavior(self, source, target, key, behavior):
         behaviored_source = behavior(source)

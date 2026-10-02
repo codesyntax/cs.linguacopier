@@ -6,6 +6,7 @@ from cs.linguacopier.copier import ContentCopier
 from cs.linguacopier.copier import sort_by_physical_path_length
 from cs.linguacopier.interfaces import ITranslateThings
 from cs.linguacopier.testing import CS_LINGUACOPIER_FUNCTIONAL_TESTING
+from cs.linguacopier.testing import CS_LINGUACOPIER_INTEGRATION_TESTING
 from plone.app.multilingual.interfaces import ITranslationManager
 from plone.app.relationfield.behavior import IRelatedItems
 from plone.app.testing import setRoles
@@ -14,6 +15,7 @@ from plone.app.textfield.value import RichTextValue
 from plone.dexterity.interfaces import IDexterityContent
 from plone.dexterity.utils import createContentInContainer
 from Products.statusmessages.interfaces import IStatusMessage
+from unittest import mock
 from z3c.relationfield import RelationValue
 from zope.component import getGlobalSiteManager
 from zope.component import getUtility
@@ -64,8 +66,8 @@ class TestCopier(unittest.TestCase):
     def _form_for(self, obj):
         return CopyContentToLanguage(obj, self.request)
 
-    def _copy_contents_of(self, obj, languages):
-        ContentCopier(obj).copy_contents_of(obj, languages)
+    def _copy(self, obj, languages):
+        return ContentCopier(obj).copy(languages, include_context=True)
 
     def _run_handler(self, obj, data, errors=None):
         form = self._form_for(obj)
@@ -75,11 +77,11 @@ class TestCopier(unittest.TestCase):
 
     # copy_contents_of / copy pipeline
 
-    def test_copy_contents_of_creates_translation(self):
+    def test_copy_creates_translation(self):
         doc = self._create_document(title="Hello", text="<p>World</p>")
         self.assertEqual(doc.Language(), "ca")
 
-        self._copy_contents_of(doc, ["es"])
+        report = self._copy(doc, ["es"])
 
         manager = ITranslationManager(doc)
         self.assertTrue(manager.has_translation("es"))
@@ -87,17 +89,20 @@ class TestCopier(unittest.TestCase):
         self.assertEqual(translated.Title(), "Hello")
         self.assertEqual(translated.text.raw, "<p>World</p>")
         self.assertEqual(translated.Language(), "es")
+        self.assertEqual([r.status for r in report.successes], ["created"])
+        self.assertEqual(report.errors, [])
 
-    def test_copy_contents_of_reuses_existing_translation(self):
+    def test_copy_updates_existing_translation(self):
         doc = self._create_document(title="Hello")
         manager = ITranslationManager(doc)
         translated = manager.add_translation("es")
         translated.title = "Outdated"
 
         doc.title = "Fresh"
-        self._copy_contents_of(doc, ["es"])
+        report = self._copy(doc, ["es"])
 
         self.assertEqual(manager.get_translation("es").Title(), "Fresh")
+        self.assertEqual([r.status for r in report.successes], ["updated"])
 
     def test_copy_fields_dexterity_skips_language(self):
         doc = self._create_document(title="Hello")
@@ -196,15 +201,83 @@ class TestCopier(unittest.TestCase):
         self.assertEqual(len(translated.relatedItems), 1)
         self.assertEqual(translated.relatedItems[0].to_object, related_es)
 
-    def test_copy_contents_of_skips_lif(self):
+    def test_copy_reports_skipped_lif(self):
         brains = self.portal.portal_catalog(portal_type="LIF")
         self.assertTrue(brains, "No LIF found in the test fixture")
         lif = brains[0].getObject()
         self.assertEqual(lif.portal_type, "LIF")
 
-        self._copy_contents_of(lif, ["es"])
+        report = self._copy(lif, ["es"])
 
+        self.assertEqual([r.status for r in report.successes], ["skipped"])
+        self.assertEqual(report.successes[0].target, lif)
         self.assertFalse(ITranslationManager(lif).has_translation("es"))
+
+    def test_copy_is_best_effort_and_rolls_back_the_failed_object(self):
+        class ExplodingTranslator:
+            def __init__(self, source, target):
+                self.source = source
+
+            def translate(self):
+                if self.source.title == "Bad":
+                    raise ValueError("boom")
+
+        gsm = getGlobalSiteManager()
+        gsm.registerAdapter(
+            ExplodingTranslator,
+            (IDexterityContent, IDexterityContent),
+            ITranslateThings,
+            name="exploding-translator",
+        )
+        try:
+            folder = createContentInContainer(self.ca, "Folder", title="Folder")
+            good = createContentInContainer(folder, "Document", title="Good")
+            bad = createContentInContainer(folder, "Document", title="Bad")
+
+            report = ContentCopier(folder).copy(
+                ["es"], include_context=True, include_children=True
+            )
+        finally:
+            gsm.unregisterAdapter(
+                ExplodingTranslator,
+                (IDexterityContent, IDexterityContent),
+                ITranslateThings,
+                name="exploding-translator",
+            )
+
+        # the failing object is recorded with its source, language and message
+        self.assertEqual(len(report.errors), 1)
+        error = report.errors[0]
+        self.assertEqual(error.source, bad)
+        self.assertEqual(error.language, "es")
+        self.assertIn("boom", error.message)
+
+        # its savepoint rolled back: no half-copied translation is left behind
+        self.assertFalse(ITranslationManager(bad).has_translation("es"))
+
+        # the rest of the copy still went through
+        self.assertTrue(ITranslationManager(folder).has_translation("es"))
+        self.assertTrue(ITranslationManager(good).has_translation("es"))
+        statuses = {r.target.getId(): r.status for r in report.successes}
+        self.assertEqual(statuses["folder"], "created")
+        self.assertEqual(statuses["good"], "created")
+
+    def test_copy_records_a_field_failure_and_rolls_back(self):
+        doc = self._create_document(title="Hello")
+
+        def explode(self, source, target, key, field=None):
+            raise ValueError(f"cannot copy {key}")
+
+        with mock.patch.object(ContentCopier, "change_content", explode):
+            report = ContentCopier(doc).copy(["es"], include_context=True)
+
+        # a field-copy failure is no longer swallowed: it is reported and the
+        # object's savepoint is rolled back, so no half-copied translation stays
+        self.assertEqual(len(report.errors), 1)
+        self.assertEqual(report.errors[0].source, doc)
+        self.assertEqual(report.errors[0].language, "es")
+        self.assertIn("cannot copy", report.errors[0].message)
+        self.assertFalse(ITranslationManager(doc).has_translation("es"))
 
     # copy_content_to (button handler)
 
@@ -254,3 +327,19 @@ class TestCopier(unittest.TestCase):
 
         self.assertFalse(ITranslationManager(doc).has_translation("es"))
         self.assertTrue(form.status)
+
+
+class TestCopyTransaction(unittest.TestCase):
+    layer = CS_LINGUACOPIER_INTEGRATION_TESTING
+
+    def test_copy_does_not_commit(self):
+        portal = self.layer["portal"]
+        setRoles(portal, TEST_USER_ID, ["Manager"])
+        doc = createContentInContainer(portal["ca"], "Document", title="Hello")
+
+        report = ContentCopier(doc).copy(["es"], include_context=True)
+
+        # IntegrationTesting replaces transaction.commit with a guard that
+        # raises; reaching here proves the pipeline never commits mid-request.
+        self.assertEqual([r.status for r in report.successes], ["created"])
+        self.assertTrue(ITranslationManager(doc).has_translation("es"))
