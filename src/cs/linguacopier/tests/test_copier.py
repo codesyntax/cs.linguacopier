@@ -1,37 +1,32 @@
 """Tests for the content copier."""
 
-import unittest
-from unittest import mock
-
+from cs.linguacopier.browser.copier import CopyContentToLanguage
+from cs.linguacopier.browser.copier import ICopyContentToLanguage
+from cs.linguacopier.browser.copier import report_counts
+from cs.linguacopier.browser.copier import report_rows
+from cs.linguacopier.copier import ContentCopier
+from cs.linguacopier.copier import CopyError
+from cs.linguacopier.copier import CopyReport
+from cs.linguacopier.copier import CopyResult
+from cs.linguacopier.copier import sort_by_physical_path_length
+from cs.linguacopier.interfaces import ITranslateThings
+from cs.linguacopier.testing import CS_LINGUACOPIER_FUNCTIONAL_TESTING
+from cs.linguacopier.testing import CS_LINGUACOPIER_INTEGRATION_TESTING
 from plone.app.multilingual.interfaces import ITranslationManager
 from plone.app.relationfield.behavior import IRelatedItems
-from plone.app.testing import TEST_USER_ID, setRoles
+from plone.app.testing import setRoles
+from plone.app.testing import TEST_USER_ID
 from plone.app.textfield.value import RichTextValue
 from plone.dexterity.interfaces import IDexterityContent
 from plone.dexterity.utils import createContentInContainer
 from Products.statusmessages.interfaces import IStatusMessage
+from unittest import mock
 from z3c.relationfield import RelationValue
-from zope.component import getGlobalSiteManager, getUtility
+from zope.component import getGlobalSiteManager
+from zope.component import getUtility
 from zope.intid.interfaces import IIntIds
 
-from cs.linguacopier.browser.copier import (
-    CopyContentToLanguage,
-    ICopyContentToLanguage,
-    report_counts,
-    report_rows,
-)
-from cs.linguacopier.copier import (
-    ContentCopier,
-    CopyError,
-    CopyReport,
-    CopyResult,
-    sort_by_physical_path_length,
-)
-from cs.linguacopier.interfaces import ITranslateThings
-from cs.linguacopier.testing import (
-    CS_LINGUACOPIER_FUNCTIONAL_TESTING,
-    CS_LINGUACOPIER_INTEGRATION_TESTING,
-)
+import unittest
 
 
 class DummyContent:

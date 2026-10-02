@@ -1,23 +1,22 @@
 include *.in
 include *.md
-include *.py
-include *.rst
 include *.txt
 include .coveragerc
-include base.cfg
-include buildout.cfg
-include test_plone50.cfg
-include test_plone51.cfg
-include test_plone52.cfg
+include Makefile
 recursive-include docs *.GPL
 recursive-include docs *.rst
 recursive-include news *.breaking
+recursive-include news *.bugfix
+recursive-include news *.feature
 recursive-include news *.internal
 recursive-include news *.jinja
+recursive-include news *.tests
+recursive-include src *.js
+recursive-include src *.po
 recursive-include src *.pot
+recursive-include src *.pt
 recursive-include src *.sh
 recursive-include src *.xml
 recursive-include src *.zcml
-recursive-include src *.pt
-recursive-include src *.js
-recursive-include news *
+exclude requirements-mxdev.txt
+exclude constraints-mxdev.txt

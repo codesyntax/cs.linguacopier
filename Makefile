@@ -105,17 +105,12 @@ create-site: $(VENV_FOLDER) instance/etc/zope.ini ## Create a new site from scra
 .PHONY: lint
 lint: ## Check and fix code base according to Plone standards
 	@echo "$(GREEN)==> Lint codebase$(RESET)"
-	@uvx ruff@latest check --fix --config $(BACKEND_FOLDER)/pyproject.toml
-	@uvx pyroma@latest -d .
-	@uvx check-python-versions@latest .
-	@uvx zpretty@latest --check src
+	@uvx tox -e lint
 
 .PHONY: format
 format: ## Check and fix code base according to Plone standards
 	@echo "$(GREEN)==> Format codebase$(RESET)"
-	@uvx ruff@latest check --select I --fix --config $(BACKEND_FOLDER)/pyproject.toml
-	@uvx ruff@latest format --config $(BACKEND_FOLDER)/pyproject.toml
-	@uvx zpretty@latest -i src
+	@uvx tox -e lint
 
 .PHONY: check
 check: format lint ## Check and fix code base according to Plone standards

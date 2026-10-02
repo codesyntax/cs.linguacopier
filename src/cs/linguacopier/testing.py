@@ -1,19 +1,17 @@
-import plone.app.multilingual
 from plone.app.contenttypes.testing import PLONE_APP_CONTENTTYPES_FIXTURE
 from plone.app.multilingual.dx.interfaces import ILanguageIndependentField
 from plone.app.robotframework.testing import REMOTE_LIBRARY_BUNDLE_FIXTURE
-from plone.app.testing import (
-    FunctionalTesting,
-    IntegrationTesting,
-    PloneSandboxLayer,
-    applyProfile,
-)
+from plone.app.testing import applyProfile
+from plone.app.testing import FunctionalTesting
+from plone.app.testing import IntegrationTesting
+from plone.app.testing import PloneSandboxLayer
 from plone.testing import zope
 from Products.CMFCore.utils import getToolByName
 from zope.configuration import xmlconfig
 from zope.interface import alsoProvides
 
 import cs.linguacopier
+import plone.app.multilingual
 
 
 class CsLinguacopierLayer(PloneSandboxLayer):
