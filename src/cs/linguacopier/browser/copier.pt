@@ -85,6 +85,17 @@
         </tbody>
       </table>
 
+      <div>
+        <a class="btn btn-primary"
+           href="${context/absolute_url}/${view/__name__}"
+           i18n:translate=""
+        >
+            Go back to the form
+        </a>
+      </div>
+
+
+
       <script type="text/javascript"
               tal:attributes="
                 src string:${view/portal_url}/++resource++cs.linguacopier.export.js;
@@ -94,7 +105,9 @@
 
     <div tal:define="
            has_target_languages view/has_target_languages;
-         ">
+         "
+         tal:condition="not:view/report"
+    >
       <div class="linguacopier-nothing-to-do"
            tal:condition="not: has_target_languages"
       >
