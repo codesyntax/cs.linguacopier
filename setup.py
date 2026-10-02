@@ -67,6 +67,7 @@ setup(
             "Products.statusmessages",
             "plone.app.relationfield",
             "plone.restapi",
+            "requests",
         ],
     },
     entry_points="""
