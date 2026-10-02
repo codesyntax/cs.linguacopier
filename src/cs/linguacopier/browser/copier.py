@@ -8,7 +8,6 @@ from z3c.form import form
 from zope import schema
 from zope.interface import Interface
 
-
 log = getLogger("cs.linguacopier.copier")
 
 
