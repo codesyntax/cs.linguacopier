@@ -9,11 +9,34 @@ from plone.app.testing import SITE_OWNER_PASSWORD
 from plone.app.testing import TEST_USER_ID
 from plone.dexterity.interfaces import IDexterityContent
 from plone.dexterity.utils import createContentInContainer
-from plone.restapi.testing import RelativeSession
+from urllib.parse import urljoin
+from urllib.parse import urlparse
 from zope.component import getGlobalSiteManager
 
+import requests
 import transaction
 import unittest
+
+
+class RelativeSession(requests.Session):
+    """A requests session that resolves relative URLs against a base URL.
+
+    A local stand-in for ``plone.restapi.testing.RelativeSession``, which would
+    pull in ``collective.MockMailHost``.
+    """
+
+    def __init__(self, base_url, test=None):
+        super().__init__()
+        if not base_url.endswith("/"):
+            base_url += "/"
+        self._base_url = base_url
+        if hasattr(test, "addCleanup"):
+            test.addCleanup(self.close)
+
+    def request(self, method, url, **kwargs):
+        if urlparse(url).scheme not in ("http", "https"):
+            url = urljoin(self._base_url, url.lstrip("/"))
+        return super().request(method, url, **kwargs)
 
 
 class TestCopyContentTo(unittest.TestCase):

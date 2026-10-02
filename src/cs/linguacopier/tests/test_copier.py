@@ -21,6 +21,7 @@ from plone.dexterity.interfaces import IDexterityContent
 from plone.dexterity.utils import createContentInContainer
 from Products.statusmessages.interfaces import IStatusMessage
 from unittest import mock
+from z3c.form.interfaces import WidgetActionExecutionError
 from z3c.relationfield import RelationValue
 from zope.component import getGlobalSiteManager
 from zope.component import getUtility
@@ -49,8 +50,9 @@ class TestHelpers(unittest.TestCase):
         self.assertEqual(result, [a, c, b])
 
     def test_interface_defaults(self):
-        self.assertFalse(ICopyContentToLanguage["include_context"].default)
-        self.assertEqual(ICopyContentToLanguage["target_languages"].default, [])
+        self.assertTrue(ICopyContentToLanguage["include_context"].default)
+        self.assertTrue(ICopyContentToLanguage["include_children"].default)
+        self.assertTrue(ICopyContentToLanguage["target_languages"].required)
 
 
 class TestReportViewModel(unittest.TestCase):
@@ -360,6 +362,16 @@ class TestCopier(unittest.TestCase):
 
         self.assertFalse(ITranslationManager(doc).has_translation("es"))
         self.assertTrue(form.status)
+
+    def test_copy_content_to_requires_target_languages(self):
+        doc = self._create_document()
+        form = self._form_for(doc)
+        form.extractData = lambda: ({"target_languages": []}, [])
+
+        with self.assertRaises(WidgetActionExecutionError):
+            form.copy_content_to(form, None)
+
+        self.assertFalse(ITranslationManager(doc).has_translation("es"))
 
     def test_copy_content_to_builds_a_report(self):
         doc = self._create_document(title="Hello")

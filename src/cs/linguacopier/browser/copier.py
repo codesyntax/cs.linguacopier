@@ -116,16 +116,14 @@ class CopyContentToLanguage(form.Form):
     def copy_content_to(self, action):
 
         data, errors = self.extractData()
-
-        if not data.get("target_languages"):
-            msg = _("This field is required")
-            raise WidgetActionExecutionError(
-                "target_languages",  # Field/widget name
-                Invalid(msg),
-            )
         if errors:
             self.status = self.formErrorsMessage
             return
+        if not data.get("target_languages"):
+            raise WidgetActionExecutionError(
+                "target_languages",
+                Invalid(_("This field is required")),
+            )
         self.report = ContentCopier(self.context).copy(
             data.get("target_languages", []),
             include_context=data.get("include_context", False),
