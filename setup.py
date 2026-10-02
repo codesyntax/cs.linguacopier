@@ -43,6 +43,7 @@ setup(
         "plone.base",
         "plone.app.multilingual",
         "plone.app.textfield",
+        "plone.app.z3cform",
         "plone.behavior",
         "plone.dexterity",
         "plone.protect",
