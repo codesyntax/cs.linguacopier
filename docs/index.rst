@@ -1,5 +1,0 @@
-====================
-cs.linguacopier
-====================
-
-User documentation

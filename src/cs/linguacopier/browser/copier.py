@@ -1,276 +1,171 @@
 from cs.linguacopier import _
-from cs.linguacopier.interfaces import ITranslateThings
+from cs.linguacopier import languages
+from cs.linguacopier.copier import ContentCopier
+from cs.linguacopier.copier import CREATED
+from cs.linguacopier.copier import SKIPPED
+from cs.linguacopier.copier import UPDATED
 from logging import getLogger
 from plone import api
-from plone.app.multilingual.interfaces import ITranslationManager
-from plone.app.textfield.value import RichTextValue
-from plone.behavior.interfaces import IBehaviorAssignable
-from plone.dexterity.interfaces import IDexterityContent
-from plone.uuid.interfaces import IUUID
+from plone.app.z3cform.widgets.checkbox import CheckBoxFieldWidget
+from Products.Five.browser.pagetemplatefile import ViewPageTemplateFile
 from z3c.form import button
 from z3c.form import field
 from z3c.form import form
-from z3c.relationfield import RelationValue
-from z3c.relationfield.schema import RelationList
+from z3c.form.interfaces import WidgetActionExecutionError
 from zope import schema
-from zope.component import getAdapters
-from zope.component import getUtility
 from zope.interface import Interface
-from zope.intid.interfaces import IIntIds
-from zope.schema import getFieldsInOrder
+from zope.interface import Invalid
 
 log = getLogger("cs.linguacopier.copier")
 
-# TODO: Generalize these lists to something editable
-SKIPPED_PORTAL_TYPES = ["LIF"]
-SKIPPED_FIELDS_AT = ["language"]
-SKIPPED_FIELDS_DX = ["language", "id"]
-CHECKED_PROPERTIES = [
-    {"name": "layout", "type": "string"},
-    {"name": "default_page", "type": "string"},
-]
+#: Display-only status for an object the copier could not copy.
+FAILED = "failed"
 
 
-def sort_by_physical_path_length(x):
-    return len(x.getPhysicalPath())
+def report_counts(report):
+    """Return ``{created, updated, skipped, failed}`` counts for a copy report.
+
+    Tolerates ``None`` (no copy ran yet): the form template evaluates the counts
+    before its ``tal:condition`` guard, i.e. on the initial GET too.
+    """
+    counts = {CREATED: 0, UPDATED: 0, SKIPPED: 0, FAILED: 0}
+    if report is None:
+        return counts
+    for result in report.successes:
+        counts[result.status] += 1
+    counts[FAILED] = len(report.errors)
+    return counts
+
+
+def report_rows(report):
+    """Flatten a report into display rows (object, language, status, message)."""
+    if report is None:
+        return []
+    rows = [
+        {
+            "object": result.target,
+            "language": result.language,
+            "status": result.status,
+            "message": "",
+        }
+        for result in report.successes
+    ]
+    rows += [
+        {
+            "object": error.source,
+            "language": error.language,
+            "status": FAILED,
+            "message": error.message,
+        }
+        for error in report.errors
+    ]
+    return rows
 
 
 class ICopyContentToLanguage(Interface):
 
-    context_element = schema.Bool(
+    include_context = schema.Bool(
         title=_("Include context element?"),
         description=_("If selected, the context element will be translated"),
-        default=False,
+        default=True,
+        required=False,
     )
 
-    contents_too = schema.Bool(
+    include_children = schema.Bool(
         title=_("Include the contents?"),
         description=_(
-            "If selected, all the subobjects of this object " "will also be translated"
+            "If selected, all the subobjects of this object will also be translated"
         ),
+        default=True,
+        required=False,
     )
 
     target_languages = schema.List(
         title=_("Target languages"),
-        description=_("Select into which languages " "the translation will be made"),
+        description=_("Select into which languages the translation will be made"),
         value_type=schema.Choice(
             title=_("Target languages"),
-            vocabulary="plone.app.vocabularies.SupportedContentLanguages",
+            vocabulary="cs.linguacopier.AvailableTargetLanguages",
         ),
-        default=[],
+        required=True,
     )
 
 
 class CopyContentToLanguage(form.Form):
 
     fields = field.Fields(ICopyContentToLanguage)
+    fields["target_languages"].widgetFactory = CheckBoxFieldWidget
 
     label = _(
         "Copy the contents of this objects and its subobjects "
         "to the selected language/country"
     )
     ignoreContext = True
+    template = ViewPageTemplateFile("copier.pt")
 
-    @button.buttonAndHandler(_("Copy content"))
+    #: Set by the button handler; the template renders it as the report table.
+    report = None
+
+    def updateActions(self, *args, **kwargs):
+        super().updateActions(*args, **kwargs)
+        self.actions["copy"].klass = self.actions["copy"].klass.replace(
+            "btn-secondary", "btn-primary"
+        )
+
+    @button.buttonAndHandler(_("Copy content"), name="copy")
     def copy_content_to(self, action):
 
         data, errors = self.extractData()
         if errors:
             self.status = self.formErrorsMessage
             return
-        target_languages = data.get("target_languages", [])
-        if data.get("context_element", False):
-            self.copy_contents_of(self.context, target_languages)
-
-        if data.get("contents_too", False):
-            pcat = api.portal.get_tool("portal_catalog")
-            brains = pcat(path="/".join(self.context.getPhysicalPath()))
-            list_of_items = []
-            for brain in brains:
-                list_of_items.append(brain.getObject())
-
-            list_of_items.sort(key=sort_by_physical_path_length)
-
-            for obj in list_of_items:
-                if obj != self.context:
-                    self.copy_contents_of(obj, target_languages)
-
+        if not data.get("target_languages"):
+            raise WidgetActionExecutionError(
+                "target_languages",
+                Invalid(_("This field is required")),
+            )
+        self.report = ContentCopier(self.context).copy(
+            data.get("target_languages", []),
+            include_context=data.get("include_context", False),
+            include_children=data.get("include_children", False),
+        )
         log.info("done")
-        msg = _("Contents copied successfully")
-        api.portal.show_message(msg, type="info")
+        api.portal.show_message(self._summary_message(), type=self._message_type())
         return
 
-    def copy_related_fields(self, obj, target_languages):
-        # XXX: Where is this used?
-        try:
-            fields = schema.getFieldsInOrder(obj.getTypeInfo().lookupSchema())
-        except AttributeError as e:
-            log.info("Error: %s" % "/".join(obj.getPhysicalPath()))
-            log.exception(e)
+    def _summary_message(self):
+        if self.report.errors:
+            return _("Some contents could not be copied")
+        return _("Contents copied successfully")
 
-        pcat = api.portal.get_tool("portal_catalog")
-        for key, value in fields:
-            value = value.get(obj)
-            if isinstance(value, list):
-                manager = ITranslationManager(obj)
-                for language in target_languages:
-                    translated_obj = manager.get_translation(language)
-                    uid_list = []
+    def _message_type(self):
+        if not self.report.errors:
+            return "info"
+        if self.report.successes:
+            return "warning"
+        return "error"
 
-                    for uid in value:
-                        element = pcat(UID=uid, Language=obj.Language())
-                        if element:
-                            manager = ITranslationManager(
-                                element[0].getObject()
-                            )  # noqa
-                            element_trans = manager.get_translation(language)
-                            if element_trans:
-                                uid_list.append(IUUID(element_trans))
-                    if uid_list:
-                        setattr(translated_obj, key, uid_list)
-                        translated_obj.reindexObject()
+    @property
+    def portal_url(self):
+        return api.portal.get().absolute_url()
 
-    def copy_contents_of(self, item, target_languages):
-        if item.portal_type in SKIPPED_PORTAL_TYPES:
-            log.info("Item skipped: {}".format("/".join(item.getPhysicalPath())))
-        else:
-            for language in target_languages:
-                manager = ITranslationManager(item)
-                if not manager.has_translation(language):
-                    manager.add_translation(language)
-                    log.info(
-                        "Created translation for {}: {}".format(
-                            "/".join(item.getPhysicalPath()), language
-                        )
-                    )
-                    import transaction
+    @property
+    def has_target_languages(self):
+        """The template hides the form when there is nothing to copy to."""
+        return languages.has_target_languages(self.context)
 
-                    transaction.commit()
-                translated = manager.get_translation(language)
-                self.copy_fields(item, translated)
-                self.copy_seo_properties(item, translated)
-                self.copy_other_properties(item, translated)
-                self.copy_other_things(item, translated)
-                translated.reindexObject()
+    @property
+    def report_counts(self):
+        return report_counts(self.report)
 
-    def copy_other_things(self, original, translated):
-        """Use an adapter lookup so developers can extend the copier"""
-        adapters = getAdapters((original, translated), ITranslateThings)
-        for _name, adapter in adapters:
-            adapter.translate()
+    @property
+    def report_rows(self):
+        return report_rows(self.report)
 
-    def copy_other_properties(self, item, translated):
-        # TODO: extract this to an adapter of ITranslateThings
-        # TODO: Generalize this list
-        for property_item in CHECKED_PROPERTIES:
-            property_name = property_item.get("name")
-            property_type = property_item.get("type")
-            if item.hasProperty(property_name):
-                log.info(f"Copying property {property_name}")
-                if not translated.hasProperty(property_name):
-                    translated.manage_addProperty(
-                        property_name, item.getProperty(property_name), property_type
-                    )
-                else:
-                    property_dict = {property_name: item.getProperty(property_name)}
-                    translated.manage_changeProperties(**property_dict)
-
-    def copy_fields(self, source, target):
-        if IDexterityContent.providedBy(source):
-            self.copy_fields_dexterity(source, target)
-
-    def copy_fields_dexterity(self, source, target):
-        # Copy the content from the canonical fields
-        try:
-            fields = schema.getFieldsInOrder(
-                source.getTypeInfo().lookupSchema()
-            )  # noqa
-        except AttributeError as e:
-            log.info("Error: %s" % "/".join(source.getPhysicalPath()))
-            log.exception(e)
-            return
-        for key, value in fields:
-            if key.lower() in SKIPPED_FIELDS_DX:
-                # skip language
-                log.info("Skipped %s" % key)
-                continue
-            self.change_content(source, target, key, value)
-
-        # Copy the contents from behaviors
-        behavior_assignable = IBehaviorAssignable(source)
-        if behavior_assignable:
-            behaviors = behavior_assignable.enumerateBehaviors()
-            for behavior in behaviors:
-                for key, value in getFieldsInOrder(behavior.interface):
-                    if key.lower() in SKIPPED_FIELDS_DX:
-                        # skip language
-                        log.info("Skipped %s" % key)
-                        continue
-                    self.change_content_for_behavior(
-                        source, target, key, behavior.interface
-                    )
-
-    def copy_seo_properties(self, source, target):
-        # TODO: extract this to an adapter of ITranslateThings
-        # Copy SEO properties added by quintagroup.seoptimizer
-        for k, v in source.propertyItems():
-            if k.startswith("qSEO_"):
-                if target.hasProperty(k):
-                    target.manage_changeProperties({k: source.getProperty(k)})
-                    path = "/".join(source.getPhysicalPath())
-                    log.info(f"Changed property {k} for {path}")
-                else:
-                    if k == "qSEO_keywords":
-                        target.manage_addProperty(k, source.getProperty(k), "lines")
-                    else:
-                        target.manage_addProperty(k, source.getProperty(k), "string")
-
-    def change_content(self, source, target, key, field=None):
-        try:
-            value = getattr(getattr(source, key), "raw", getattr(source, key))
-            if isinstance(field, RelationList):
-                intids = getUtility(IIntIds)
-                target_language = target.Language()
-                related_translations = []
-                for relation_field in value:
-                    related_element = relation_field.to_object
-                    if related_element:
-                        related_element_translation = ITranslationManager(
-                            related_element
-                        ).get_translation(target_language)
-                        if related_element_translation:
-                            try:
-                                to_id = intids.getId(related_element_translation)
-                            except KeyError:
-                                to_id = intids.register(related_element_translation)
-                            related_translations.append(RelationValue(to_id))
-                value = related_translations
-        except Exception as e:
-            log.info(f"Error setting references attribute {key} on {target}")
-            log.exception(e)
-        try:
-            if getattr(getattr(source, key), "raw", None) is not None:
-                value = RichTextValue(value, "text/html", "text/x-html-safe")
-
-            setattr(target, key, value)
-            if hasattr(source, "getPhysicalPath"):
-                log.info(
-                    "Set attribute {} in {}".format(
-                        key, "/".join(target.getPhysicalPath())
-                    )
-                )
-            else:
-                log.info(
-                    "Set attribute {} in {}".format(
-                        key, "/".join(target.context.getPhysicalPath())
-                    )
-                )
-
-        except Exception as e:
-            log.info(f"Error setting attribute {key} on {target}")
-            log.exception(e)
-
-    def change_content_for_behavior(self, source, target, key, behavior):
-        behaviored_source = behavior(source)
-        behaviored_target = behavior(target)
-        self.change_content(behaviored_source, behaviored_target, key)
+    def status_label(self, status):
+        return {
+            CREATED: _("Created"),
+            UPDATED: _("Updated"),
+            SKIPPED: _("Skipped"),
+            FAILED: _("Failed"),
+        }.get(status, status)

@@ -14,4 +14,15 @@
       zcml:condition="installed plone.app.multilingual"
       />
 
+  <browser:resource
+      name="cs.linguacopier.export.js"
+      file="resources/export.js"
+      />
+
+  <utility
+      provides="zope.schema.interfaces.IVocabularyFactory"
+      name="cs.linguacopier.AvailableTargetLanguages"
+      component=".vocabularies.AvailableTargetLanguagesFactory"
+      />
+
 </configure>

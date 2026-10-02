@@ -1,0 +1,123 @@
+<html xmlns="http://www.w3.org/1999/xhtml"
+      xmlns:i18n="http://xml.zope.org/namespaces/i18n"
+      xmlns:metal="http://xml.zope.org/namespaces/metal"
+      xmlns:tal="http://xml.zope.org/namespaces/tal"
+      metal:use-macro="context/main_template/macros/master"
+      tal:define="
+        dummy python:request.set('disable_plone.leftcolumn', True);
+        dummy python:request.set('disable_plone.rightcolumn', True);
+      "
+      i18n:domain="cs.linguacopier"
+>
+  <body metal:fill-slot="body">
+
+    <h1 tal:define="
+          label view/label | nothing;
+        "
+        tal:content="label"
+        tal:omit-tag="not:label"
+    ></h1>
+
+    <div class="description"
+         tal:condition="view/description | nothing"
+         tal:content="structure view/description"
+    >Form description</div>
+
+    <div class="linguacopier-report"
+         tal:define="
+           counts view/report_counts;
+         "
+         tal:condition="view/report"
+    >
+      <h2 i18n:translate="">Copy report</h2>
+
+      <div class="linguacopier-report-actions">
+        <button class="btn btn-sm btn-secondary linguacopier-export"
+                type="button"
+                data-linguacopier-export="csv"
+        >
+          <span i18n:translate="">Export as CSV</span>
+          <span tal:replace="structure python:icons.tag('download')"></span>
+        </button>
+      </div>
+
+      <table class="table table-striped listing linguacopier-report-counts">
+        <thead>
+          <tr>
+            <th i18n:translate="">Created</th>
+            <th i18n:translate="">Updated</th>
+            <th i18n:translate="">Skipped</th>
+            <th i18n:translate="">Failed</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td tal:content="counts/created">0</td>
+            <td tal:content="counts/updated">0</td>
+            <td tal:content="counts/skipped">0</td>
+            <td tal:content="counts/failed">0</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <table class="table table-striped listing linguacopier-report-items">
+        <thead>
+          <tr>
+            <th i18n:translate="">Object</th>
+            <th i18n:translate="">Language</th>
+            <th i18n:translate="">Status</th>
+            <th i18n:translate="">Detail</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr tal:repeat="row view/report_rows">
+            <td>
+              <a tal:content="row/object/Title | row/object/absolute_url"
+                 tal:attributes="
+                   href row/object/absolute_url;
+                 "
+              >Object</a>
+            </td>
+            <td tal:content="row/language">es</td>
+            <td tal:content="python: view.status_label(row['status'])">created</td>
+            <td tal:content="row/message">message</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div>
+        <a class="btn btn-primary"
+           href="${context/absolute_url}/${view/__name__}"
+           i18n:translate=""
+        >
+            Go back to the form
+        </a>
+      </div>
+
+
+
+      <script type="text/javascript"
+              tal:attributes="
+                src string:${view/portal_url}/++resource++cs.linguacopier.export.js;
+              "
+      ></script>
+    </div>
+
+    <div tal:define="
+           has_target_languages view/has_target_languages;
+         "
+         tal:condition="not:view/report"
+    >
+      <div class="linguacopier-nothing-to-do"
+           tal:condition="not: has_target_languages"
+      >
+        <p i18n:translate="">There are no other languages to copy this content to.</p>
+      </div>
+
+      <div tal:condition="has_target_languages">
+        <metal:block use-macro="context/@@ploneform-macros/titlelessform" />
+      </div>
+    </div>
+
+  </body>
+</html>

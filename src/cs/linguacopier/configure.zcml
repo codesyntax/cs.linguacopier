@@ -2,12 +2,18 @@
     xmlns="http://namespaces.zope.org/zope"
     xmlns:genericsetup="http://namespaces.zope.org/genericsetup"
     xmlns:i18n="http://namespaces.zope.org/i18n"
+    xmlns:zcml="http://namespaces.zope.org/zcml"
     i18n_domain="cs.linguacopier"
     >
 
   <i18n:registerTranslations directory="locales" />
 
   <include package=".browser" />
+
+  <include
+      package=".restapi"
+      zcml:condition="installed plone.restapi"
+      />
 
 
   <genericsetup:registerProfile

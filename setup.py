@@ -2,7 +2,6 @@
 
 from setuptools import setup
 
-
 long_description = "\n\n".join(
     [
         open("README.md").read(),
@@ -44,8 +43,10 @@ setup(
         "plone.base",
         "plone.app.multilingual",
         "plone.app.textfield",
+        "plone.app.z3cform",
         "plone.behavior",
         "plone.dexterity",
+        "plone.protect",
         "plone.uuid",
         "Products.GenericSetup>=1.8.2",
         "z3c.form",
@@ -65,6 +66,8 @@ setup(
             "plone.browserlayer",
             "Products.statusmessages",
             "plone.app.relationfield",
+            "plone.restapi",
+            "requests",
         ],
     },
     entry_points="""

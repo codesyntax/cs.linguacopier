@@ -8,6 +8,8 @@
 [![GitHub issues](https://img.shields.io/github/issues/codesyntax/cs.linguacopier)](https://github.com/codesyntax/cs.linguacopier/issues)
 [![GitHub last commit](https://img.shields.io/github/last-commit/codesyntax/cs.linguacopier)](https://github.com/codesyntax/cs.linguacopier/commits/master)
 
+[Full Documentation](https://codesyntax.github.io/cs.linguacopier/)
+
 This products adds an action to copy contents to a selected language.
 
 We have faced many times the work to create the contents of a site in one language and then recreate
@@ -19,18 +21,27 @@ Disclaimer: this product does not effectively translate the contents (does not t
 
 ## Installation
 
-Install cs.linguacopier by adding it to your buildout:
+Install cs.linguacopier by adding `cs.linguacopier` it to your project's dependencies (either buildout, pyproject.toml, requirements.txt, uv or whatever you use to manage your Plone project's dependencies).
 
-```ini
-[buildout]
+## REST API
 
-...
+When [`plone.restapi`](https://pypi.org/project/plone.restapi/) is installed, the copier is also available over REST, so a Volto front end can use it:
 
-eggs =
-    cs.linguacopier
+```
+POST /<content>/@copy-content-to
 ```
 
-and then running `bin/buildout`.
+with a JSON body such as:
+
+```json
+{
+  "target_languages": ["es", "ca"],
+  "include_context": true,
+  "include_children": true
+}
+```
+
+The endpoint requires the **Manage portal** permission and always answers `200` with a per-object result. See the [documentation](https://cslinguacopier.readthedocs.io/en/latest/) for the full request and response contract.
 
 ## Contribute
 
