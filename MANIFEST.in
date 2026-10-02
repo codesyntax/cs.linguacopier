@@ -18,4 +18,6 @@ recursive-include src *.pot
 recursive-include src *.sh
 recursive-include src *.xml
 recursive-include src *.zcml
+recursive-include src *.pt
+recursive-include src *.js
 recursive-include news *

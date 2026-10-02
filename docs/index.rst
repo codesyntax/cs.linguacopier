@@ -22,6 +22,11 @@ On any content object, use the **Copy language content** action to open the
 ``@@copy-content-to`` form. Choose one or more target languages, and whether to
 include the context object and/or its subobjects.
 
+After the copy, the form shows a report of what happened: a summary of the
+created, updated, skipped, and failed items, and one row per object and language
+with its status and, for failures, the reason. The report table can be exported
+as CSV (which opens in Excel) with the **Export as CSV** button.
+
 
 REST API
 --------

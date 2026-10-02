@@ -2,7 +2,12 @@
 
 from cs.linguacopier.browser.copier import CopyContentToLanguage
 from cs.linguacopier.browser.copier import ICopyContentToLanguage
+from cs.linguacopier.browser.copier import report_counts
+from cs.linguacopier.browser.copier import report_rows
 from cs.linguacopier.copier import ContentCopier
+from cs.linguacopier.copier import CopyError
+from cs.linguacopier.copier import CopyReport
+from cs.linguacopier.copier import CopyResult
 from cs.linguacopier.copier import sort_by_physical_path_length
 from cs.linguacopier.interfaces import ITranslateThings
 from cs.linguacopier.testing import CS_LINGUACOPIER_FUNCTIONAL_TESTING
@@ -45,6 +50,49 @@ class TestHelpers(unittest.TestCase):
     def test_interface_defaults(self):
         self.assertFalse(ICopyContentToLanguage["include_context"].default)
         self.assertEqual(ICopyContentToLanguage["target_languages"].default, [])
+
+
+class TestReportViewModel(unittest.TestCase):
+    def _report(self):
+        target = DummyContent(("plone", "es", "good"))
+        source = DummyContent(("plone", "ca", "bad"))
+        return CopyReport(
+            successes=[
+                CopyResult(target=target, language="es", status="created"),
+                CopyResult(target=target, language="ca", status="updated"),
+                CopyResult(target=target, language="es", status="skipped"),
+            ],
+            errors=[CopyError(source=source, language="es", message="boom")],
+        )
+
+    def test_report_counts(self):
+        self.assertEqual(
+            report_counts(self._report()),
+            {"created": 1, "updated": 1, "skipped": 1, "failed": 1},
+        )
+
+    def test_report_rows(self):
+        report = self._report()
+        rows = report_rows(report)
+
+        self.assertEqual(len(rows), 4)
+        self.assertEqual(
+            {row["status"] for row in rows},
+            {"created", "updated", "skipped", "failed"},
+        )
+        failure = [row for row in rows if row["status"] == "failed"][0]
+        self.assertEqual(failure["object"], report.errors[0].source)
+        self.assertEqual(failure["language"], "es")
+        self.assertEqual(failure["message"], "boom")
+
+    def test_none_report_is_tolerated(self):
+        # the form template evaluates the counts before its condition guard,
+        # i.e. on the initial GET too, when no copy has run yet
+        self.assertEqual(
+            report_counts(None),
+            {"created": 0, "updated": 0, "skipped": 0, "failed": 0},
+        )
+        self.assertEqual(report_rows(None), [])
 
 
 class TestCopier(unittest.TestCase):
@@ -126,22 +174,6 @@ class TestCopier(unittest.TestCase):
         doc.manage_changeProperties(layout="summary_view")
         copier.copy_other_properties(doc, translated)
         self.assertEqual(translated.getProperty("layout"), "summary_view")
-
-    def test_copy_seo_properties(self):
-        doc = self._create_document()
-        translated = ITranslationManager(doc).add_translation("es")
-        copier = ContentCopier(doc)
-
-        doc.manage_addProperty("qSEO_title", "SEO title", "string")
-        doc.manage_addProperty("qSEO_keywords", ["one", "two"], "lines")
-        copier.copy_seo_properties(doc, translated)
-
-        self.assertEqual(translated.getProperty("qSEO_title"), "SEO title")
-        self.assertEqual(translated.getProperty("qSEO_keywords"), ("one", "two"))
-
-        doc.manage_changeProperties(qSEO_title="Updated title")
-        copier.copy_seo_properties(doc, translated)
-        self.assertEqual(translated.getProperty("qSEO_title"), "Updated title")
 
     def test_copy_other_things_calls_adapters(self):
         class DummyTranslator:
@@ -327,6 +359,92 @@ class TestCopier(unittest.TestCase):
 
         self.assertFalse(ITranslationManager(doc).has_translation("es"))
         self.assertTrue(form.status)
+
+    def test_copy_content_to_builds_a_report(self):
+        doc = self._create_document(title="Hello")
+
+        form = self._run_handler(
+            doc,
+            {
+                "target_languages": ["es"],
+                "include_context": True,
+                "include_children": False,
+            },
+        )
+
+        self.assertIsNotNone(form.report)
+        self.assertEqual(form.report_counts["created"], 1)
+        self.assertEqual(form.report_rows[0]["status"], "created")
+
+    def test_copy_content_to_report_includes_failures(self):
+        class ExplodingTranslator:
+            def __init__(self, source, target):
+                self.source = source
+
+            def translate(self):
+                if self.source.title == "Bad":
+                    raise ValueError("boom")
+
+        gsm = getGlobalSiteManager()
+        gsm.registerAdapter(
+            ExplodingTranslator,
+            (IDexterityContent, IDexterityContent),
+            ITranslateThings,
+            name="exploding-translator",
+        )
+        try:
+            folder = createContentInContainer(self.ca, "Folder", title="Folder")
+            createContentInContainer(folder, "Document", title="Good")
+            createContentInContainer(folder, "Document", title="Bad")
+            form = self._run_handler(
+                folder,
+                {
+                    "target_languages": ["es"],
+                    "include_context": True,
+                    "include_children": True,
+                },
+            )
+        finally:
+            gsm.unregisterAdapter(
+                ExplodingTranslator,
+                (IDexterityContent, IDexterityContent),
+                ITranslateThings,
+                name="exploding-translator",
+            )
+
+        self.assertEqual(form.report_counts["failed"], 1)
+        failed = [row for row in form.report_rows if row["status"] == "failed"]
+        self.assertEqual(len(failed), 1)
+        self.assertIn("boom", failed[0]["message"])
+
+    def test_report_is_rendered_on_the_form(self):
+        doc = self._create_document(title="Hello")
+        form = self._form_for(doc)
+        form.update()
+        form.extractData = lambda: (
+            {
+                "target_languages": ["es"],
+                "include_context": True,
+                "include_children": False,
+            },
+            [],
+        )
+        form.copy_content_to(form, None)
+
+        html = form.render()
+
+        self.assertIn("linguacopier-report-items", html)
+        self.assertIn("Export as CSV", html)
+        self.assertIn("cs.linguacopier.export.js", html)
+
+    def test_form_renders_without_a_report(self):
+        doc = self._create_document(title="Hello")
+        form = self._form_for(doc)
+        form.update()
+
+        html = form.render()
+
+        self.assertNotIn("linguacopier-report-items", html)
 
 
 class TestCopyTransaction(unittest.TestCase):

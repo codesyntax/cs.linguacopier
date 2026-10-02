@@ -1,0 +1,96 @@
+<html xmlns="http://www.w3.org/1999/xhtml"
+      xmlns:i18n="http://xml.zope.org/namespaces/i18n"
+      xmlns:metal="http://xml.zope.org/namespaces/metal"
+      xmlns:tal="http://xml.zope.org/namespaces/tal"
+      metal:use-macro="context/@@standard_macros/page"
+      i18n:domain="cs.linguacopier"
+>
+  <body metal:fill-slot="body">
+
+    <h1 tal:define="
+          label view/label | nothing;
+        "
+        tal:content="label"
+        tal:omit-tag="not:label"
+    ></h1>
+
+    <div class="description"
+         tal:condition="view/description | nothing"
+         tal:content="structure view/description"
+    >Form description</div>
+
+    <div class="linguacopier-report"
+         tal:define="
+           counts view/report_counts;
+         "
+         tal:condition="view/report"
+    >
+      <h2 i18n:translate="">Copy report</h2>
+
+      <div class="linguacopier-report-actions">
+        <button class="btn btn-sm btn-default linguacopier-export"
+                type="button"
+                data-linguacopier-export="csv"
+        >
+          <span class="fas fa-file-download"
+                aria-hidden="true"
+          ></span>
+          <span i18n:translate="">Export as CSV</span>
+        </button>
+      </div>
+
+      <table class="linguacopier-report-counts">
+        <thead>
+          <tr>
+            <th i18n:translate="">Created</th>
+            <th i18n:translate="">Updated</th>
+            <th i18n:translate="">Skipped</th>
+            <th i18n:translate="">Failed</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td tal:content="counts/created">0</td>
+            <td tal:content="counts/updated">0</td>
+            <td tal:content="counts/skipped">0</td>
+            <td tal:content="counts/failed">0</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <table class="listing linguacopier-report-items">
+        <thead>
+          <tr>
+            <th i18n:translate="">Object</th>
+            <th i18n:translate="">Language</th>
+            <th i18n:translate="">Status</th>
+            <th i18n:translate="">Detail</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr tal:repeat="row view/report_rows">
+            <td>
+              <a tal:content="row/object/Title | row/object/absolute_url"
+                 tal:attributes="
+                   href row/object/absolute_url;
+                 "
+              >Object</a>
+            </td>
+            <td tal:content="row/language">es</td>
+            <td tal:content="python: view.status_label(row['status'])">created</td>
+            <td tal:content="row/message">message</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <script type="text/javascript"
+              tal:attributes="
+                src string:${view/portal_url}/++resource++cs.linguacopier.export.js;
+              "
+      ></script>
+    </div>
+
+    <metal:block use-macro="context/@@ploneform-macros/titlelessform" />
+
+  </body>
+</html>
