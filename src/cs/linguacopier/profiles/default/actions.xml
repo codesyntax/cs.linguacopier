@@ -9,9 +9,9 @@
   >
     <object meta_type="CMF Action"
             name="copy_content_to"
-            i18n:domain="cs.linguacopier"
     >
       <property name="title"
+                i18n:domain="cs.linguacopier"
                 i18n:translate="copy_content_to"
       >Copy language content</property>
       <property name="description"

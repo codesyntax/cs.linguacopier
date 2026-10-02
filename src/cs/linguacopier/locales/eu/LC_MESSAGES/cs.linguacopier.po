@@ -4,7 +4,7 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
-"POT-Creation-Date: 2026-10-02 09:28+0000\n"
+"POT-Creation-Date: 2026-10-02 10:33+0000\n"
 "PO-Revision-Date: 2026-10-02 11:28+0200\n"
 "Last-Translator: Mikel Larreategi <mlarreategi@codesyntax.com>\n"
 "Language-Team: Basque <translation-team-eu@googlegroups.com>\n"
@@ -12,113 +12,125 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=1; plural=0\n"
-"Language-Code: en\n"
-"Language-Name: English\n"
+"Language-Code: eu\n"
+"Language-Name: Basque\n"
 "Preferred-Encodings: utf-8 latin1\n"
 "Domain: cs.linguacopier\n"
 "Language: eu\n"
 
-#: cs/linguacopier/browser/copier.py:117
+#: cs/linguacopier/browser/copier.py:143
 msgid "Contents copied successfully"
-msgstr ""
+msgstr "Edukiak ondo kopiatu dira"
 
-#: cs/linguacopier/browser/copier.py:98
+#: cs/linguacopier/browser/copier.py:117
 msgid "Copy content"
-msgstr ""
+msgstr "Kopiatu edukia"
 
 #: cs/linguacopier/browser/copier.pt:32
 msgid "Copy report"
-msgstr ""
+msgstr "Kopia-txostena"
 
-#: cs/linguacopier/browser/copier.py:88
+#: cs/linguacopier/browser/copier.py:101
 msgid "Copy the contents of this objects and its subobjects to the selected language/country"
-msgstr ""
+msgstr "Kopiatu objektu honen eta bere azpiobjektuen edukiak hautatutako hizkuntza/herrialdera"
 
 #: cs/linguacopier/browser/copier.pt:47
-#: cs/linguacopier/browser/copier.py:140
+#: cs/linguacopier/browser/copier.py:171
 msgid "Created"
-msgstr ""
+msgstr "Sortuta"
 
 #: cs/linguacopier/browser/copier.pt:69
 msgid "Detail"
-msgstr ""
+msgstr "Xehetasuna"
 
 #: cs/linguacopier/browser/copier.pt:39
 msgid "Export as CSV"
-msgstr ""
+msgstr "Esportatu CSV gisa"
 
 #: cs/linguacopier/browser/copier.pt:50
-#: cs/linguacopier/browser/copier.py:143
+#: cs/linguacopier/browser/copier.py:174
 msgid "Failed"
-msgstr ""
+msgstr "Huts eginda"
 
-#: cs/linguacopier/browser/copier.py:68
+#: cs/linguacopier/browser/copier.pt:89
+msgid "Go back to the form"
+msgstr "Itzuli formulariora"
+
+#: cs/linguacopier/browser/copier.py:78
 msgid "If selected, all the subobjects of this object will also be translated"
-msgstr ""
+msgstr "Hautatzen bada, objektu honen azpiobjektu guztiak ere itzuliko dira"
 
-#: cs/linguacopier/browser/copier.py:62
+#: cs/linguacopier/browser/copier.py:71
 msgid "If selected, the context element will be translated"
-msgstr ""
+msgstr "Hautatzen bada, testuinguru-elementua itzuliko da"
 
-#: cs/linguacopier/browser/copier.py:61
+#: cs/linguacopier/browser/copier.py:70
 msgid "Include context element?"
-msgstr ""
+msgstr "Testuinguru-elementua sartu?"
 
-#: cs/linguacopier/browser/copier.py:67
+#: cs/linguacopier/browser/copier.py:77
 msgid "Include the contents?"
-msgstr ""
+msgstr "Edukia sartu?"
 
 #: cs/linguacopier/configure.zcml:26
 msgid "Installs the cs.linguacopier add-on."
-msgstr ""
+msgstr "cs.linguacopier gehigarria instalatzen du."
 
 #: cs/linguacopier/browser/copier.pt:67
 msgid "Language"
-msgstr ""
+msgstr "Hizkuntza"
 
 #: cs/linguacopier/browser/copier.pt:66
 msgid "Object"
-msgstr ""
+msgstr "Objektua"
 
-#: cs/linguacopier/browser/copier.py:75
+#: cs/linguacopier/browser/copier.py:87
 msgid "Select into which languages the translation will be made"
-msgstr ""
+msgstr "Hautatu zein hizkuntzatara egingo den itzulpena"
 
 #: cs/linguacopier/browser/copier.pt:49
-#: cs/linguacopier/browser/copier.py:142
+#: cs/linguacopier/browser/copier.py:173
 msgid "Skipped"
-msgstr ""
+msgstr "Saltatuta"
 
-#: cs/linguacopier/browser/copier.py:116
+#: cs/linguacopier/browser/copier.py:142
 msgid "Some contents could not be copied"
-msgstr ""
+msgstr "Eduki batzuk ezin izan dira kopiatu"
 
 #: cs/linguacopier/browser/copier.pt:68
 msgid "Status"
-msgstr ""
+msgstr "Egoera"
 
-#: cs/linguacopier/browser/copier.py:74
+#: cs/linguacopier/browser/copier.py:86
 msgid "Target languages"
-msgstr ""
+msgstr "Helburuko hizkuntzak"
+
+#: cs/linguacopier/browser/copier.pt:114
+msgid "There are no other languages to copy this content to."
+msgstr "Ez dago eduki hau kopiatzeko beste hizkuntzarik."
+
+#: cs/linguacopier/browser/copier.py:123
+msgid "This field is required"
+msgstr "Eremu hau derrigorrezkoa da"
 
 #: cs/linguacopier/configure.zcml:35
 msgid "Uninstalls the cs.linguacopier add-on."
-msgstr ""
+msgstr "cs.linguacopier gehigarria desinstalatzen du."
 
 #: cs/linguacopier/browser/copier.pt:48
-#: cs/linguacopier/browser/copier.py:141
+#: cs/linguacopier/browser/copier.py:172
 msgid "Updated"
-msgstr ""
+msgstr "Eguneratuta"
 
 #. Default: "Copy language content"
 #: cs/linguacopier/profiles/default/actions.xml
 msgid "copy_content_to"
-msgstr ""
+msgstr "Kopiatu edukia beste hizkuntza batera"
 
 #: cs/linguacopier/configure.zcml:26
 msgid "cs.linguacopier"
-msgstr ""
+msgstr "cs.linguacopier"
 
 #: cs/linguacopier/configure.zcml:35
 msgid "cs.linguacopier (uninstall)"
-msgstr ""
+msgstr "cs.linguacopier (uninstall)"
