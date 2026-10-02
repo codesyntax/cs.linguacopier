@@ -25,6 +25,7 @@ from z3c.relationfield import RelationValue
 from zope.component import getGlobalSiteManager
 from zope.component import getUtility
 from zope.intid.interfaces import IIntIds
+from zope.schema.interfaces import IVocabularyFactory
 
 import unittest
 
@@ -445,6 +446,42 @@ class TestCopier(unittest.TestCase):
         html = form.render()
 
         self.assertNotIn("linguacopier-report-items", html)
+
+    def _target_languages(self, context):
+        factory = getUtility(
+            IVocabularyFactory, "cs.linguacopier.AvailableTargetLanguages"
+        )
+        return {term.value for term in factory(context)}
+
+    def test_target_languages_exclude_the_context_language(self):
+        doc = self._create_document()
+        self.assertEqual(doc.Language(), "ca")
+
+        values = self._target_languages(doc)
+
+        self.assertIn("es", values)
+        self.assertNotIn("ca", values)
+
+    def test_language_independent_context_offers_all_languages(self):
+        # the portal root has no language, so nothing is excluded
+        values = self._target_languages(self.portal)
+
+        self.assertIn("ca", values)
+        self.assertIn("es", values)
+
+    def test_form_hides_when_there_is_nothing_to_copy_to(self):
+        doc = self._create_document(title="Hello")
+        form = self._form_for(doc)
+
+        with mock.patch(
+            "cs.linguacopier.languages.has_target_languages",
+            lambda context: False,
+        ):
+            form.update()
+            html = form.render()
+
+        self.assertIn("There are no other languages", html)
+        self.assertNotIn("form.widgets.target_languages", html)
 
 
 class TestCopyTransaction(unittest.TestCase):

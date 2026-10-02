@@ -6,7 +6,8 @@ form.
 """
 
 from cs.linguacopier.copier import ContentCopier
-from plone import api
+from cs.linguacopier.languages import current_language
+from cs.linguacopier.languages import target_language_vocabulary
 from plone.protect.interfaces import IDisableCSRFProtection
 from plone.restapi.deserializer import json_body
 from plone.restapi.services import Service
@@ -65,15 +66,21 @@ class CopyContentToLanguage(Service):
             ]
 
         errors = []
-        supported = api.portal.get_tool("portal_languages").getSupportedLanguages()
+        available = {term.value for term in target_language_vocabulary(self.context)}
+        current = current_language(self.context)
         for language in target_languages:
-            if language not in supported:
-                errors.append(
-                    {
-                        "@id": self.context.absolute_url(),
-                        "message": f"Unsupported language: {language}",
-                    }
-                )
+            if language in available:
+                continue
+            if language == current:
+                message = f"Cannot copy to the content's own language: {language}"
+            else:
+                message = f"Unsupported language: {language}"
+            errors.append(
+                {
+                    "@id": self.context.absolute_url(),
+                    "message": message,
+                }
+            )
         if not (include_context or include_children):
             errors.append(
                 {

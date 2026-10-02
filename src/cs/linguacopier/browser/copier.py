@@ -1,4 +1,5 @@
 from cs.linguacopier import _
+from cs.linguacopier import languages
 from cs.linguacopier.copier import ContentCopier
 from cs.linguacopier.copier import CREATED
 from cs.linguacopier.copier import SKIPPED
@@ -78,7 +79,7 @@ class ICopyContentToLanguage(Interface):
         description=_("Select into which languages the translation will be made"),
         value_type=schema.Choice(
             title=_("Target languages"),
-            vocabulary="plone.app.vocabularies.SupportedContentLanguages",
+            vocabulary="cs.linguacopier.AvailableTargetLanguages",
         ),
         default=[],
     )
@@ -129,6 +130,11 @@ class CopyContentToLanguage(form.Form):
     @property
     def portal_url(self):
         return api.portal.get().absolute_url()
+
+    @property
+    def has_target_languages(self):
+        """The template hides the form when there is nothing to copy to."""
+        return languages.has_target_languages(self.context)
 
     @property
     def report_counts(self):

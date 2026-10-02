@@ -92,7 +92,19 @@
       ></script>
     </div>
 
-    <metal:block use-macro="context/@@ploneform-macros/titlelessform" />
+    <div tal:define="
+           has_target_languages view/has_target_languages;
+         ">
+      <div class="linguacopier-nothing-to-do"
+           tal:condition="not: has_target_languages"
+      >
+        <p i18n:translate="">There are no other languages to copy this content to.</p>
+      </div>
+
+      <div tal:condition="has_target_languages">
+        <metal:block use-macro="context/@@ploneform-macros/titlelessform" />
+      </div>
+    </div>
 
   </body>
 </html>

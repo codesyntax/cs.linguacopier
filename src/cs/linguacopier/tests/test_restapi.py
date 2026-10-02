@@ -151,6 +151,22 @@ class TestCopyContentTo(unittest.TestCase):
         self.assertTrue(payload["errors"])
         self.assertFalse(ITranslationManager(doc).has_translation("es"))
 
+    def test_cannot_copy_to_the_contents_own_language(self):
+        doc = self._create_document()
+        self.assertEqual(doc.Language(), "ca")
+
+        response = self.api_session.post(
+            self._endpoint(doc),
+            json={"target_languages": ["ca"], "include_context": True},
+        )
+        self._abort()
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(payload["copied"], [])
+        self.assertTrue(payload["errors"])
+        self.assertIn("own language", payload["errors"][0]["message"])
+
     def test_permission_required(self):
         doc = self._create_document()
         anonymous = RelativeSession(self.portal_url, test=self)

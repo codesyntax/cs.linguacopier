@@ -20,7 +20,9 @@ Classic UI
 
 On any content object, use the **Copy language content** action to open the
 ``@@copy-content-to`` form. Choose one or more target languages, and whether to
-include the context object and/or its subobjects.
+include the context object and/or its subobjects. The target languages exclude
+the content's own language; when the site has no other language configured, the
+form is hidden and only a note is shown.
 
 After the copy, the form shows a report of what happened: a summary of the
 created, updated, skipped, and failed items, and one row per object and language
@@ -52,7 +54,8 @@ Request body
 
 ``target_languages``
     Required, non-empty. The language codes to copy into; each must be a
-    supported content language.
+    supported content language other than the addressed content's own language
+    (a request naming it is rejected).
 
 ``include_context``
     Optional boolean, default ``false``. Also copy the addressed object itself.
