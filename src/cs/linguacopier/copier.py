@@ -258,11 +258,12 @@ class ContentCopier:
                             to_id = intids.register(related_element_translation)
                         related_translations.append(RelationValue(to_id))
             value = related_translations
-        if getattr(source_value, "raw", None) is not None:
-            # Rich text is copied verbatim here (translated in a later step).
-            value = RichTextValue(value, "text/html", "text/x-html-safe")
-        elif self.translate and isinstance(value, str):
+        if self.translate and isinstance(value, str) and value:
+            # Scalars and rich text raw HTML are both plain strings here; the
+            # original value is kept when the service returns nothing.
             value = self._translate_value(value)
+        if getattr(source_value, "raw", None) is not None:
+            value = RichTextValue(value, "text/html", "text/x-html-safe")
 
         setattr(target, key, value)
         if hasattr(source, "getPhysicalPath"):

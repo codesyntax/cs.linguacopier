@@ -562,6 +562,47 @@ class TestTranslateOnCopy(unittest.TestCase):
         self.assertEqual(translated.description, "World")
         self.assertEqual(self.service.calls, [])
 
+    def test_translates_rich_text_and_preserves_markup(self):
+        doc = self._document(
+            title="Hello",
+            text=RichTextValue(
+                "<p>Hello <strong>world</strong></p>", "text/html", "text/x-html-safe"
+            ),
+        )
+
+        ContentCopier(doc).copy(["es"], include_context=True, translate=True)
+
+        translated = ITranslationManager(doc).get_translation("es")
+        self.assertEqual(
+            translated.text.raw, "[es] <p>Hello <strong>world</strong></p>"
+        )
+        # the raw HTML is what is fed to the service
+        self.assertIn(
+            ("<p>Hello <strong>world</strong></p>", "ca", "es"), self.service.calls
+        )
+
+    def test_empty_rich_text_is_not_translated(self):
+        doc = self._document(
+            title="Hello",
+            text=RichTextValue("", "text/html", "text/x-html-safe"),
+        )
+
+        ContentCopier(doc).copy(["es"], include_context=True, translate=True)
+
+        self.assertNotIn("", [call[0] for call in self.service.calls])
+
+    def test_translate_off_keeps_rich_text(self):
+        doc = self._document(
+            title="Hello",
+            text=RichTextValue("<p>Hello</p>", "text/html", "text/x-html-safe"),
+        )
+
+        ContentCopier(doc).copy(["es"], include_context=True)
+
+        translated = ITranslationManager(doc).get_translation("es")
+        self.assertEqual(translated.text.raw, "<p>Hello</p>")
+        self.assertEqual(self.service.calls, [])
+
     def test_empty_values_are_not_translated(self):
         doc = self._document(title="Hello", description="")
 
