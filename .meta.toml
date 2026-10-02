@@ -11,3 +11,9 @@ test_matrix = { "6.2" = ["*"] }
 
 [pyproject]
 dependencies_ignores = "['plone.restapi']"
+
+
+[gitignore]
+extra_lines = """
+.mxdev_cache
+"""

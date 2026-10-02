@@ -1,123 +1,124 @@
-#--- PLEASE EDIT THE LINES BELOW CORRECTLY ---
-#SOME DESCRIPTIVE TITLE.
-#FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+# --- PLEASE EDIT THE LINES BELOW CORRECTLY ---
+# English translations for PACKAGE package.
+# Mikel Larreategi <mlarreategi@codesyntax.com>, 2026.
 msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "POT-Creation-Date: 2026-10-02 09:28+0000\n"
-"PO-Revision-Date: YEAR-MO-DA HO:MI +ZONE\n"
-"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
-"Language-Team: LANGUAGE <LL@li.org>\n"
+"PO-Revision-Date: 2026-10-02 11:28+0200\n"
+"Last-Translator: Mikel Larreategi <mlarreategi@codesyntax.com>\n"
+"Language-Team: English\n"
 "MIME-Version: 1.0\n"
-"Content-Type: text/plain; charset=utf-8\n"
+"Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"Plural-Forms: nplurals=1; plural=0\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
 "Language-Code: en\n"
 "Language-Name: English\n"
 "Preferred-Encodings: utf-8 latin1\n"
 "Domain: cs.linguacopier\n"
+"Language: en\n"
 
 #: cs/linguacopier/browser/copier.py:117
 msgid "Contents copied successfully"
-msgstr ""
+msgstr "Contents copied successfully"
 
 #: cs/linguacopier/browser/copier.py:98
 msgid "Copy content"
-msgstr ""
+msgstr "Copy content"
 
 #: cs/linguacopier/browser/copier.pt:32
 msgid "Copy report"
-msgstr ""
+msgstr "Copy report"
 
 #: cs/linguacopier/browser/copier.py:88
 msgid "Copy the contents of this objects and its subobjects to the selected language/country"
-msgstr ""
+msgstr "Copy the contents of this objects and its subobjects to the selected language/country"
 
 #: cs/linguacopier/browser/copier.pt:47
 #: cs/linguacopier/browser/copier.py:140
 msgid "Created"
-msgstr ""
+msgstr "Created"
 
 #: cs/linguacopier/browser/copier.pt:69
 msgid "Detail"
-msgstr ""
+msgstr "Detail"
 
 #: cs/linguacopier/browser/copier.pt:39
 msgid "Export as CSV"
-msgstr ""
+msgstr "Export as CSV"
 
 #: cs/linguacopier/browser/copier.pt:50
 #: cs/linguacopier/browser/copier.py:143
 msgid "Failed"
-msgstr ""
+msgstr "Failed"
 
 #: cs/linguacopier/browser/copier.py:68
 msgid "If selected, all the subobjects of this object will also be translated"
-msgstr ""
+msgstr "If selected, all the subobjects of this object will also be translated"
 
 #: cs/linguacopier/browser/copier.py:62
 msgid "If selected, the context element will be translated"
-msgstr ""
+msgstr "If selected, the context element will be translated"
 
 #: cs/linguacopier/browser/copier.py:61
 msgid "Include context element?"
-msgstr ""
+msgstr "Include context element?"
 
 #: cs/linguacopier/browser/copier.py:67
 msgid "Include the contents?"
-msgstr ""
+msgstr "Include the contents?"
 
 #: cs/linguacopier/configure.zcml:26
 msgid "Installs the cs.linguacopier add-on."
-msgstr ""
+msgstr "Installs the cs.linguacopier add-on."
 
 #: cs/linguacopier/browser/copier.pt:67
 msgid "Language"
-msgstr ""
+msgstr "Language"
 
 #: cs/linguacopier/browser/copier.pt:66
 msgid "Object"
-msgstr ""
+msgstr "Object"
 
 #: cs/linguacopier/browser/copier.py:75
 msgid "Select into which languages the translation will be made"
-msgstr ""
+msgstr "Select into which languages the translation will be made"
 
 #: cs/linguacopier/browser/copier.pt:49
 #: cs/linguacopier/browser/copier.py:142
 msgid "Skipped"
-msgstr ""
+msgstr "Skipped"
 
 #: cs/linguacopier/browser/copier.py:116
 msgid "Some contents could not be copied"
-msgstr ""
+msgstr "Some contents could not be copied"
 
 #: cs/linguacopier/browser/copier.pt:68
 msgid "Status"
-msgstr ""
+msgstr "Status"
 
 #: cs/linguacopier/browser/copier.py:74
 msgid "Target languages"
-msgstr ""
+msgstr "Target languages"
 
 #: cs/linguacopier/configure.zcml:35
 msgid "Uninstalls the cs.linguacopier add-on."
-msgstr ""
+msgstr "Uninstalls the cs.linguacopier add-on."
 
 #: cs/linguacopier/browser/copier.pt:48
 #: cs/linguacopier/browser/copier.py:141
 msgid "Updated"
-msgstr ""
+msgstr "Updated"
 
 #. Default: "Copy language content"
 #: cs/linguacopier/profiles/default/actions.xml
 msgid "copy_content_to"
-msgstr ""
+msgstr "copy_content_to"
 
 #: cs/linguacopier/configure.zcml:26
 msgid "cs.linguacopier"
-msgstr ""
+msgstr "cs.linguacopier"
 
 #: cs/linguacopier/configure.zcml:35
 msgid "cs.linguacopier (uninstall)"
-msgstr ""
+msgstr "cs.linguacopier (uninstall)"
