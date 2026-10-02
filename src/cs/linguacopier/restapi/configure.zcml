@@ -5,10 +5,7 @@
     >
 
   <!-- Make the plone:service directive available regardless of ZCML load order -->
-  <include
-      package="plone.rest"
-      file="meta.zcml"
-      />
+  <include package="plone.restapi" />
 
   <plone:service
       method="POST"

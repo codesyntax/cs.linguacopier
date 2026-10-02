@@ -2,7 +2,6 @@
 
 from setuptools import setup
 
-
 long_description = "\n\n".join(
     [
         open("README.md").read(),
@@ -46,6 +45,7 @@ setup(
         "plone.app.textfield",
         "plone.behavior",
         "plone.dexterity",
+        "plone.protect",
         "plone.uuid",
         "Products.GenericSetup>=1.8.2",
         "z3c.form",
@@ -66,7 +66,6 @@ setup(
             "Products.statusmessages",
             "plone.app.relationfield",
             "plone.restapi",
-            "collective.MockMailHost",
         ],
     },
     entry_points="""
