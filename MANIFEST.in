@@ -3,8 +3,20 @@ include *.md
 include *.txt
 include .coveragerc
 include Makefile
+include docs/Makefile
 recursive-include docs *.GPL
+recursive-include docs *.html
+recursive-include docs *.ini
+recursive-include docs *.lock
+recursive-include docs *.md
+recursive-include docs *.py
 recursive-include docs *.rst
+recursive-include docs *.svg
+recursive-include docs *.toml
+recursive-include docs *.txt
+recursive-include docs *.yaml
+prune docs/_build
+prune docs/.venv
 recursive-include news *.breaking
 recursive-include news *.bugfix
 recursive-include news *.feature

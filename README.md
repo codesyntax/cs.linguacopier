@@ -8,6 +8,8 @@
 [![GitHub issues](https://img.shields.io/github/issues/codesyntax/cs.linguacopier)](https://github.com/codesyntax/cs.linguacopier/issues)
 [![GitHub last commit](https://img.shields.io/github/last-commit/codesyntax/cs.linguacopier)](https://github.com/codesyntax/cs.linguacopier/commits/master)
 
+[Full Documentation](https://codesyntax.github.io/cs.linguacopier/)
+
 This products adds an action to copy contents to a selected language.
 
 We have faced many times the work to create the contents of a site in one language and then recreate
