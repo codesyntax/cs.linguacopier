@@ -1,17 +1,13 @@
-from cs.linguacopier import _
-from cs.linguacopier.copier import ContentCopier
-from cs.linguacopier.copier import CREATED
-from cs.linguacopier.copier import SKIPPED
-from cs.linguacopier.copier import UPDATED
 from logging import getLogger
+
 from plone import api
 from Products.Five.browser.pagetemplatefile import ViewPageTemplateFile
-from z3c.form import button
-from z3c.form import field
-from z3c.form import form
+from z3c.form import button, field, form
 from zope import schema
 from zope.interface import Interface
 
+from cs.linguacopier import _
+from cs.linguacopier.copier import CREATED, SKIPPED, UPDATED, ContentCopier
 
 log = getLogger("cs.linguacopier.copier")
 

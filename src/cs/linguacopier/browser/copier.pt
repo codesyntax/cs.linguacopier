@@ -2,7 +2,11 @@
       xmlns:i18n="http://xml.zope.org/namespaces/i18n"
       xmlns:metal="http://xml.zope.org/namespaces/metal"
       xmlns:tal="http://xml.zope.org/namespaces/tal"
-      metal:use-macro="context/@@standard_macros/page"
+      metal:use-macro="context/main_template/macros/master"
+      tal:define="
+        dummy python:request.set('disable_plone.leftcolumn', True);
+        dummy python:request.set('disable_plone.rightcolumn', True);
+      "
       i18n:domain="cs.linguacopier"
 >
   <body metal:fill-slot="body">
@@ -28,18 +32,16 @@
       <h2 i18n:translate="">Copy report</h2>
 
       <div class="linguacopier-report-actions">
-        <button class="btn btn-sm btn-default linguacopier-export"
+        <button class="btn btn-sm btn-secondary linguacopier-export"
                 type="button"
                 data-linguacopier-export="csv"
         >
-          <span class="fas fa-file-download"
-                aria-hidden="true"
-          ></span>
           <span i18n:translate="">Export as CSV</span>
+          <span tal:replace="structure python:icons.tag('download')"></span>
         </button>
       </div>
 
-      <table class="linguacopier-report-counts">
+      <table class="table table-striped listing linguacopier-report-counts">
         <thead>
           <tr>
             <th i18n:translate="">Created</th>
@@ -58,7 +60,7 @@
         </tbody>
       </table>
 
-      <table class="listing linguacopier-report-items">
+      <table class="table table-striped listing linguacopier-report-items">
         <thead>
           <tr>
             <th i18n:translate="">Object</th>

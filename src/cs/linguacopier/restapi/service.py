@@ -5,12 +5,13 @@ subtree into the requested target languages, mirroring the ``@@copy-content-to``
 form.
 """
 
-from cs.linguacopier.copier import ContentCopier
 from plone import api
 from plone.protect.interfaces import IDisableCSRFProtection
 from plone.restapi.deserializer import json_body
 from plone.restapi.services import Service
 from zope.interface import alsoProvides
+
+from cs.linguacopier.copier import ContentCopier
 
 
 class CopyContentToLanguage(Service):

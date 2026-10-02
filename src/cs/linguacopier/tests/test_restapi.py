@@ -1,19 +1,22 @@
 """Functional tests for the @copy-content-to REST service."""
 
-from cs.linguacopier.interfaces import ITranslateThings
-from cs.linguacopier.testing import CS_LINGUACOPIER_RESTAPI_FUNCTIONAL_TESTING
+import unittest
+
+import transaction
 from plone.app.multilingual.interfaces import ITranslationManager
-from plone.app.testing import setRoles
-from plone.app.testing import SITE_OWNER_NAME
-from plone.app.testing import SITE_OWNER_PASSWORD
-from plone.app.testing import TEST_USER_ID
+from plone.app.testing import (
+    SITE_OWNER_NAME,
+    SITE_OWNER_PASSWORD,
+    TEST_USER_ID,
+    setRoles,
+)
 from plone.dexterity.interfaces import IDexterityContent
 from plone.dexterity.utils import createContentInContainer
 from plone.restapi.testing import RelativeSession
 from zope.component import getGlobalSiteManager
 
-import transaction
-import unittest
+from cs.linguacopier.interfaces import ITranslateThings
+from cs.linguacopier.testing import CS_LINGUACOPIER_RESTAPI_FUNCTIONAL_TESTING
 
 
 class TestCopyContentTo(unittest.TestCase):

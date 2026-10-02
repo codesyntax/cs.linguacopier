@@ -1,12 +1,12 @@
 """Setup tests for this package."""
 
-from cs.linguacopier.testing import CS_LINGUACOPIER_INTEGRATION_TESTING
+import unittest
+
 from plone import api
-from plone.app.testing import setRoles
-from plone.app.testing import TEST_USER_ID
+from plone.app.testing import TEST_USER_ID, setRoles
 from plone.base.utils import get_installer
 
-import unittest
+from cs.linguacopier.testing import CS_LINGUACOPIER_INTEGRATION_TESTING
 
 
 class TestSetup(unittest.TestCase):
@@ -25,8 +25,9 @@ class TestSetup(unittest.TestCase):
 
     def test_browserlayer(self):
         """Test that ICsLinguacopierLayer is registered."""
-        from cs.linguacopier.interfaces import ICsLinguacopierLayer
         from plone.browserlayer import utils
+
+        from cs.linguacopier.interfaces import ICsLinguacopierLayer
 
         self.assertIn(ICsLinguacopierLayer, utils.registered_layers())
 
@@ -49,7 +50,8 @@ class TestUninstall(unittest.TestCase):
 
     def test_browserlayer_removed(self):
         """Test that ICsLinguacopierLayer is removed."""
-        from cs.linguacopier.interfaces import ICsLinguacopierLayer
         from plone.browserlayer import utils
+
+        from cs.linguacopier.interfaces import ICsLinguacopierLayer
 
         self.assertNotIn(ICsLinguacopierLayer, utils.registered_layers())

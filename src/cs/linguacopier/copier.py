@@ -5,10 +5,10 @@ the classic-UI form and the REST service, so it must not depend on z3c.form or
 the browser layer.
 """
 
-from cs.linguacopier.interfaces import ITranslateThings
-from dataclasses import dataclass
-from dataclasses import field
+from dataclasses import dataclass, field
 from logging import getLogger
+
+import transaction
 from plone import api
 from plone.app.multilingual.interfaces import ITranslationManager
 from plone.app.textfield.value import RichTextValue
@@ -18,12 +18,11 @@ from plone.uuid.interfaces import IUUID
 from z3c.relationfield import RelationValue
 from z3c.relationfield.schema import RelationList
 from zope import schema
-from zope.component import getAdapters
-from zope.component import getUtility
+from zope.component import getAdapters, getUtility
 from zope.intid.interfaces import IIntIds
 from zope.schema import getFieldsInOrder
 
-import transaction
+from cs.linguacopier.interfaces import ITranslateThings
 
 log = getLogger("cs.linguacopier.copier")
 
@@ -164,7 +163,7 @@ class ContentCopier:
                         if element:
                             manager = ITranslationManager(
                                 element[0].getObject()
-                            )  # noqa
+                            )
                             element_trans = manager.get_translation(language)
                             if element_trans:
                                 uid_list.append(IUUID(element_trans))
