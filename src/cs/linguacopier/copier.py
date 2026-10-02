@@ -25,12 +25,10 @@ from zope.schema import getFieldsInOrder
 
 import transaction
 
-
 log = getLogger("cs.linguacopier.copier")
 
 # TODO: Generalize these lists to something editable
 SKIPPED_PORTAL_TYPES = ["LIF"]
-SKIPPED_FIELDS_AT = ["language"]
 SKIPPED_FIELDS_DX = ["language", "id"]
 CHECKED_PROPERTIES = [
     {"name": "layout", "type": "string"},
@@ -124,7 +122,6 @@ class ContentCopier:
                 )
             translated = manager.get_translation(language)
             self.copy_fields(item, translated)
-            self.copy_seo_properties(item, translated)
             self.copy_other_properties(item, translated)
             self.copy_other_things(item, translated)
             translated.reindexObject()
@@ -224,21 +221,6 @@ class ContentCopier:
                     self.change_content_for_behavior(
                         source, target, key, behavior.interface
                     )
-
-    def copy_seo_properties(self, source, target):
-        # TODO: extract this to an adapter of ITranslateThings
-        # Copy SEO properties added by quintagroup.seoptimizer
-        for k, v in source.propertyItems():
-            if k.startswith("qSEO_"):
-                if target.hasProperty(k):
-                    target.manage_changeProperties({k: source.getProperty(k)})
-                    path = "/".join(source.getPhysicalPath())
-                    log.info(f"Changed property {k} for {path}")
-                else:
-                    if k == "qSEO_keywords":
-                        target.manage_addProperty(k, source.getProperty(k), "lines")
-                    else:
-                        target.manage_addProperty(k, source.getProperty(k), "string")
 
     def change_content(self, source, target, key, field=None):
         value = getattr(getattr(source, key), "raw", getattr(source, key))
