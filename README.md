@@ -41,7 +41,7 @@ with a JSON body such as:
 }
 ```
 
-The endpoint requires the **Manage portal** permission and always answers `200` with a per-object result. See the [documentation](https://cslinguacopier.readthedocs.io/en/latest/) for the full request and response contract.
+The endpoint requires the **Manage portal** permission and always answers `200` with a per-object result. See the [documentation](https://codesyntax.github.io/cs.linguacopier/) for the full request and response contract.
 
 ## Contribute
 
