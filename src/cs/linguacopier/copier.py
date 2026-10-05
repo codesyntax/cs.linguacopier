@@ -147,13 +147,20 @@ class ContentCopier:
         When ``translate`` is true, text field values are translated with the
         configured external translation service, keeping the original when
         nothing can translate it.
+
+        A thin driver over :meth:`items_to_copy` and :meth:`copy_item`, so a
+        background job can drive the same steps with its own commit boundaries.
         """
         self.translate = translate
         report = CopyReport()
-        items = self._items_to_copy(include_context, include_children)
+        items = self.items_to_copy(include_context, include_children)
         for item in items:
             for language in target_languages:
-                self._copy_one(item, language, report)
+                result = self.copy_item(item, language)
+                if isinstance(result, CopyError):
+                    report.errors.append(result)
+                else:
+                    report.successes.append(result)
         if include_children:
             # Once the whole tree is copied, give the target folders the same
             # child order as their source. The context is included even when it
@@ -164,7 +171,12 @@ class ContentCopier:
                 self._order_targets(folders, language)
         return report
 
-    def _items_to_copy(self, include_context, include_children):
+    def items_to_copy(self, include_context=False, include_children=False):
+        """Return the items a copy would touch, in processing order.
+
+        The addressed object first (when ``include_context``), then its
+        descendants sorted by path length (when ``include_children``).
+        """
         items = []
         if include_context:
             items.append(self.context)
@@ -230,13 +242,17 @@ class ContentCopier:
             if obj_id in current_ids:
                 ordering.moveObjectToPosition(obj_id, index)
 
-    def _copy_one(self, item, language, report):
+    def copy_item(self, item, language):
+        """Copy one item into one language; return a ``CopyResult`` or ``CopyError``.
+
+        Best-effort: the item is isolated in its own savepoint, so a failure is
+        rolled back and returned without aborting the caller's batch. The copier
+        never commits; the caller owns the transaction boundaries. Translation
+        follows the copier's ``translate`` setting.
+        """
         if item.portal_type in SKIPPED_PORTAL_TYPES:
             log.info("Item skipped: %s", "/".join(item.getPhysicalPath()))
-            report.successes.append(
-                CopyResult(target=item, language=language, status=SKIPPED)
-            )
-            return
+            return CopyResult(target=item, language=language, status=SKIPPED)
 
         savepoint = None
         try:
@@ -268,18 +284,13 @@ class ContentCopier:
             if savepoint is not None:
                 savepoint.rollback()
             log.exception(e)
-            report.errors.append(
-                CopyError(source=item, language=language, message=str(e))
-            )
-            return
+            return CopyError(source=item, language=language, message=str(e))
 
-        report.successes.append(
-            CopyResult(
-                target=translated,
-                language=language,
-                status=CREATED if created else UPDATED,
-                translation=self._translation_outcome(),
-            )
+        return CopyResult(
+            target=translated,
+            language=language,
+            status=CREATED if created else UPDATED,
+            translation=self._translation_outcome(),
         )
 
     def copy_other_things(self, original, translated):
