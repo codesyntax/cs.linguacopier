@@ -27,9 +27,6 @@ DONE = "done"
 FAILED = "failed"
 CANCELLED = "cancelled"
 
-#: Accepted copy modes: automatic routing, direct (synchronous), background.
-MODES = ("auto", "direct", "background")
-
 #: Upper bound on the per-job error list, so a big job cannot bloat the ZODB.
 MAX_ERRORS = 50
 
