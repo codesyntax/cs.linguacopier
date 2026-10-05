@@ -136,11 +136,13 @@ class CopyJobQueue:
         ]
 
     def pending(self):
+        # Queued jobs, plus any still marked running — with a single worker a
+        # running job means the previous run was interrupted, so it resumes.
         store = get_job_store()
         return [
             store.jobs[job_id]
             for job_id in store.order
-            if job_id in store.jobs and store.jobs[job_id].status == QUEUED
+            if job_id in store.jobs and store.jobs[job_id].status in (QUEUED, RUNNING)
         ]
 
     def cancel(self, job_id):

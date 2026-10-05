@@ -56,12 +56,16 @@ class TestCopyJobQueue(unittest.TestCase):
 
         self.assertEqual([job.id for job in self.queue.all()], [second.id, first.id])
 
-    def test_pending_lists_only_queued_oldest_first(self):
+    def test_pending_lists_queued_and_running_oldest_first(self):
         first = self.queue.add(self._params())
         second = self.queue.add(self._params())
+        third = self.queue.add(self._params())
         first.status = DONE
+        second.status = RUNNING
 
-        self.assertEqual([job.id for job in self.queue.pending()], [second.id])
+        self.assertEqual(
+            [job.id for job in self.queue.pending()], [second.id, third.id]
+        )
 
     def test_cancel_a_queued_job(self):
         job = self.queue.add(self._params())

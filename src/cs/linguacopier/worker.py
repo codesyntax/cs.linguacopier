@@ -5,16 +5,21 @@ systemd timer, for example::
 
     bin/instance run src/cs/linguacopier/worker.py
 
-It drains the queued copy jobs oldest-first, copies each with the shared copier
-and records progress on the job. It writes a heartbeat so the control panel can
-tell whether a worker is running.
+It drains the queued copy jobs oldest-first, copying each in chunks of a
+configured size and committing between them, so a large copy is not one giant
+transaction. Progress and a resume cursor are stored on the job, so a worker
+restarted mid-job resumes where it stopped, and a job can be cancelled at a
+chunk boundary. It writes a heartbeat so the control panel can tell whether a
+worker is running.
 """
 
 from AccessControl.SecurityManagement import getSecurityManager
 from AccessControl.SecurityManagement import newSecurityManager
 from AccessControl.SecurityManagement import setSecurityManager
 from cs.linguacopier.copier import ContentCopier
+from cs.linguacopier.copier import CopyError
 from cs.linguacopier.interfaces import ICopyJobQueue
+from cs.linguacopier.jobs import CANCELLED
 from cs.linguacopier.jobs import DONE
 from cs.linguacopier.jobs import FAILED
 from cs.linguacopier.jobs import get_job_store
@@ -32,7 +37,7 @@ log = getLogger("cs.linguacopier.worker")
 
 
 def process_pending_jobs(portal=None, max_jobs=None):
-    """Execute the queued copy jobs, oldest first.
+    """Execute the pending copy jobs, oldest first.
 
     Returns the number of jobs processed.
     """
@@ -58,61 +63,106 @@ def process_pending_jobs(portal=None, max_jobs=None):
 
 
 def _run_job(portal, job, settings):
+    if job.status == CANCELLED:
+        return
     job.status = RUNNING
     job.started = now()
     transaction.commit()
 
-    savepoint = transaction.savepoint()
     try:
         context = _resolve_context(portal, job.params)
-        include_context = bool(job.params.get("include_context", False))
-        include_children = bool(job.params.get("include_children", False))
-        target_languages = list(job.params.get("target_languages", []))
-        copier = ContentCopier(context)
-        items = copier.items_to_copy(include_context, include_children)
-        job.progress["total"] = len(items) * len(target_languages)
-        report = copier.copy(
-            target_languages,
-            include_context=include_context,
-            include_children=include_children,
-            translate=bool(job.params.get("translate", False)),
-        )
     except Exception as e:
-        savepoint.rollback()
-        failed = getUtility(ICopyJobQueue).get(job.id)
-        failed.status = FAILED
-        failed.last_error = str(e)
-        failed.finished = now()
-        transaction.commit()
-        log.exception("Copy job %s failed", job.id)
+        _mark_failed(job, e)
         return
 
-    _record_report(job, report)
-    job.status = DONE
+    copier = ContentCopier(context)
+    copier.translate = bool(job.params.get("translate", False))
+    units = [
+        (item, language)
+        for item in copier.items_to_copy(
+            bool(job.params.get("include_context", False)),
+            bool(job.params.get("include_children", False)),
+        )
+        for language in job.params.get("target_languages", [])
+    ]
+
+    job.progress["total"] = len(units)
+    transaction.commit()
+    chunk_size = max(1, int(settings.chunk_size))
+    max_retries = max(0, int(settings.max_retries))
+
+    index = int(job.cursor or 0)
+    while index < len(units):
+        if job.cancel_requested:
+            _finish(job, CANCELLED)
+            log.info("Copy job %s cancelled at %s/%s", job.id, index, len(units))
+            return
+        chunk = units[index : index + chunk_size]
+        job = _run_chunk(job, copier, chunk, index + len(chunk), max_retries)
+        if job is None:
+            return
+        index = job.cursor
+        log.info("Copy job %s progress %s/%s", job.id, index, len(units))
+
+    # A cancellation that arrived during the last chunk still counts.
+    _finish(job, CANCELLED if job.cancel_requested else DONE)
+    log.info("Copy job %s finished: %s", job.id, job.status)
+
+
+def _run_chunk(job, copier, chunk, new_cursor, max_retries):
+    """Copy one chunk and commit it, retrying transient failures.
+
+    Returns the (possibly reloaded) job on success, or ``None`` when the retries
+    are exhausted and the job has been marked failed.
+    """
+    job_id = job.id
+    attempts = 0
+    while True:
+        try:
+            for item, language in chunk:
+                _record_result(job, copier.copy_item(item, language))
+            job.cursor = new_cursor
+            transaction.commit()
+        except Exception as e:
+            transaction.abort()
+            attempts += 1
+            job = getUtility(ICopyJobQueue).get(job_id)
+            if attempts > max_retries:
+                _mark_failed(job, e)
+                return None
+            log.warning("Copy job %s chunk failed, retrying (%s)", job_id, attempts)
+            continue
+        return job
+
+
+def _record_result(job, result):
+    job.progress["processed"] += 1
+    if isinstance(result, CopyError):
+        job.progress["failed"] += 1
+        job.add_error(
+            source=_url(result.source),
+            language=result.language,
+            message=result.message,
+        )
+        return
+    if result.status in job.progress:
+        job.progress[result.status] += 1
+    if result.translation in job.translation:
+        job.translation[result.translation] += 1
+
+
+def _mark_failed(job, error):
+    job.status = FAILED
+    job.last_error = str(error)
     job.finished = now()
     transaction.commit()
-    log.info("Copy job %s done: %s", job.id, dict(job.progress))
+    log.error("Copy job %s failed: %s", job.id, error)
 
 
-def _record_report(job, report):
-    counts = {"created": 0, "updated": 0, "skipped": 0}
-    translation = {"translated": 0, "partial": 0, "not_translated": 0}
-    for result in report.successes:
-        if result.status in counts:
-            counts[result.status] += 1
-        if result.translation in translation:
-            translation[result.translation] += 1
-    job.progress.update(counts)
-    job.progress["failed"] = len(report.errors)
-    job.progress["processed"] = len(report.successes) + len(report.errors)
-    job.progress["total"] = max(job.progress["total"], job.progress["processed"])
-    job.translation.update(translation)
-    for error in report.errors:
-        job.add_error(
-            source=_url(error.source),
-            language=error.language,
-            message=error.message,
-        )
+def _finish(job, status):
+    job.status = status
+    job.finished = now()
+    transaction.commit()
 
 
 def _resolve_context(portal, params):

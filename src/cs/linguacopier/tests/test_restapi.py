@@ -1,6 +1,7 @@
 """Functional tests for the @copy-content-to REST service."""
 
 from cs.linguacopier.interfaces import ITranslateThings
+from cs.linguacopier.jobs import get_job_store
 from cs.linguacopier.testing import CS_LINGUACOPIER_RESTAPI_FUNCTIONAL_TESTING
 from cs.linguacopier.testing import FakeTranslationService
 from cs.linguacopier.worker import process_pending_jobs
@@ -282,6 +283,51 @@ class TestCopyContentTo(unittest.TestCase):
 
     def test_unknown_job_returns_404(self):
         response = self.api_session.get(f"{self.portal_url}/@copy-jobs/nope")
+
+        self.assertEqual(response.status_code, 404)
+
+    def test_delete_cancels_a_queued_job(self):
+        doc = self._create_document(title="Hello")
+        response = self.api_session.post(
+            self._endpoint(doc),
+            json={
+                "target_languages": ["es"],
+                "include_context": True,
+                "mode": "background",
+            },
+        )
+        self._abort()
+        job_id = response.json()["job"]["id"]
+
+        response = self.api_session.delete(f"{self.portal_url}/@copy-jobs/{job_id}")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["status"], "cancelled")
+
+    def test_delete_a_running_job_requests_cancellation(self):
+        doc = self._create_document(title="Hello")
+        response = self.api_session.post(
+            self._endpoint(doc),
+            json={
+                "target_languages": ["es"],
+                "include_context": True,
+                "mode": "background",
+            },
+        )
+        self._abort()
+        job_id = response.json()["job"]["id"]
+        get_job_store(self.portal).jobs[job_id].status = "running"
+        transaction.commit()
+
+        response = self.api_session.delete(f"{self.portal_url}/@copy-jobs/{job_id}")
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(payload["status"], "running")
+        self.assertTrue(payload["cancel_requested"])
+
+    def test_delete_unknown_job_returns_404(self):
+        response = self.api_session.delete(f"{self.portal_url}/@copy-jobs/nope")
 
         self.assertEqual(response.status_code, 404)
 
