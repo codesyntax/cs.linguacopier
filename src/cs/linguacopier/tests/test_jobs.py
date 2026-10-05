@@ -4,13 +4,16 @@ from cs.linguacopier.interfaces import ICopyJobQueue
 from cs.linguacopier.jobs import CANCELLED
 from cs.linguacopier.jobs import DONE
 from cs.linguacopier.jobs import get_job_store
+from cs.linguacopier.jobs import now
 from cs.linguacopier.jobs import QUEUED
 from cs.linguacopier.jobs import RUNNING
 from cs.linguacopier.testing import CS_LINGUACOPIER_FUNCTIONAL_TESTING
+from datetime import timedelta
 from plone.app.testing import setRoles
 from plone.app.testing import TEST_USER_ID
 from zope.component import getUtility
 
+import transaction
 import unittest
 
 
@@ -104,3 +107,57 @@ class TestCopyJobQueue(unittest.TestCase):
         self.assertEqual(data["params"]["target_languages"], ["es"])
         self.assertIn("progress", data)
         self.assertEqual(data["errors"], [])
+
+    def test_prune_removes_finished_jobs_older_than_retention(self):
+        old = self.queue.add(self._params())
+        old.status = DONE
+        old.finished = now() - timedelta(days=40)
+        recent = self.queue.add(self._params())
+        recent.status = DONE
+        recent.finished = now()
+        transaction.commit()
+
+        removed = self.queue.prune(retention_days=30)
+
+        self.assertEqual(removed, [old.id])
+        self.assertIsNone(self.queue.get(old.id))
+        self.assertIsNotNone(self.queue.get(recent.id))
+
+    def test_prune_keeps_queued_and_running_jobs(self):
+        queued = self.queue.add(self._params())
+        running = self.queue.add(self._params())
+        running.status = RUNNING
+        running.finished = now() - timedelta(days=40)
+
+        self.queue.prune(retention_days=0, max_jobs=0)
+
+        self.assertIsNotNone(self.queue.get(queued.id))
+        self.assertIsNotNone(self.queue.get(running.id))
+
+    def test_prune_enforces_the_maximum_count_keeping_the_newest(self):
+        jobs = []
+        for _ in range(3):
+            job = self.queue.add(self._params())
+            job.status = DONE
+            job.finished = now()
+            jobs.append(job)
+
+        self.queue.prune(max_jobs=2)
+
+        self.assertIsNone(self.queue.get(jobs[0].id))  # the oldest is dropped
+        self.assertIsNotNone(self.queue.get(jobs[1].id))
+        self.assertIsNotNone(self.queue.get(jobs[2].id))
+
+    def test_prune_keeps_the_most_recently_finished_not_created(self):
+        # An older job that finished last must survive a newer-created one.
+        retried = self.queue.add(self._params())
+        recent = self.queue.add(self._params())
+        retried.status = DONE
+        retried.finished = now()
+        recent.status = DONE
+        recent.finished = now() - timedelta(days=10)
+
+        self.queue.prune(max_jobs=1)
+
+        self.assertIsNotNone(self.queue.get(retried.id))
+        self.assertIsNone(self.queue.get(recent.id))
