@@ -23,4 +23,12 @@
       name="@copy-jobs"
       />
 
+  <plone:service
+      method="DELETE"
+      factory=".copyjobs.CopyJobsDelete"
+      for="*"
+      permission="cmf.ManagePortal"
+      name="@copy-jobs"
+      />
+
 </configure>

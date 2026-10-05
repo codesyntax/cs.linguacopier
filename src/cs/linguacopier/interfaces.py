@@ -87,7 +87,7 @@ class ICopyJobQueue(Interface):
         """Return every job, newest first."""
 
     def pending():
-        """Return the queued jobs, oldest first."""
+        """Return the pending jobs (queued, plus interrupted running ones)."""
 
     def cancel(job_id):
         """Cancel a job; return it, or ``None`` when it does not exist."""

@@ -1,7 +1,8 @@
 """REST service exposing background copy jobs.
 
 ``GET /<content>/@copy-jobs`` lists the jobs; ``GET /<content>/@copy-jobs/<id>``
-returns one job's status, progress, parameters and bounded errors.
+returns one job's status, progress, parameters and bounded errors; ``DELETE
+/<content>/@copy-jobs/<id>`` cancels a job.
 """
 
 from cs.linguacopier.interfaces import ICopyJobQueue
@@ -12,7 +13,7 @@ from zope.publisher.interfaces import IPublishTraverse
 
 
 @implementer(IPublishTraverse)
-class CopyJobsGet(Service):
+class _CopyJobService(Service):
     def __init__(self, context, request):
         super().__init__(context, request)
         self.params = []
@@ -22,17 +23,27 @@ class CopyJobsGet(Service):
         self.params.append(name)
         return self
 
+    def _error(self, status, type, message):
+        self.request.response.setStatus(status)
+        return {"error": {"type": type, "message": message}}
+
+
+class CopyJobsGet(_CopyJobService):
     def reply(self):
         queue = getUtility(ICopyJobQueue)
         if self.params:
             job = queue.get(self.params[0])
             if job is None:
-                self.request.response.setStatus(404)
-                return {
-                    "error": {
-                        "type": "Not Found",
-                        "message": f"No such job: {self.params[0]}",
-                    }
-                }
+                return self._error(404, "Not Found", f"No such job: {self.params[0]}")
             return job.to_dict()
         return {"jobs": [job.to_dict() for job in queue.all()]}
+
+
+class CopyJobsDelete(_CopyJobService):
+    def reply(self):
+        if len(self.params) != 1:
+            return self._error(400, "Bad Request", "Supply exactly one job id")
+        job = getUtility(ICopyJobQueue).cancel(self.params[0])
+        if job is None:
+            return self._error(404, "Not Found", f"No such job: {self.params[0]}")
+        return job.to_dict()

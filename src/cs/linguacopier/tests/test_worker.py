@@ -4,9 +4,11 @@ from AccessControl.SecurityManagement import newSecurityManager
 from AccessControl.users import nobody
 from cs.linguacopier.copier import ContentCopier
 from cs.linguacopier.interfaces import ICopyJobQueue
+from cs.linguacopier.jobs import CANCELLED
 from cs.linguacopier.jobs import DONE
 from cs.linguacopier.jobs import FAILED
 from cs.linguacopier.jobs import get_job_store
+from cs.linguacopier.jobs import RUNNING
 from cs.linguacopier.testing import CS_LINGUACOPIER_FUNCTIONAL_TESTING
 from cs.linguacopier.testing import FakeTranslationService
 from cs.linguacopier.worker import process_pending_jobs
@@ -14,6 +16,7 @@ from plone.app.multilingual.interfaces import ITranslationManager
 from plone.app.testing import setRoles
 from plone.app.testing import TEST_USER_ID
 from plone.dexterity.utils import createContentInContainer
+from plone.registry.interfaces import IRegistry
 from unittest import mock
 from zope.component import getGlobalSiteManager
 from zope.component import getUtility
@@ -48,6 +51,17 @@ class TestWorker(unittest.TestCase):
         job = self.queue.add(params, requested_by="tester")
         transaction.commit()
         return job
+
+    def _set_setting(self, name, value):
+        registry = getUtility(IRegistry)
+        registry[f"cs.linguacopier.{name}"] = value
+        transaction.commit()
+
+    def _folder_with_children(self, count):
+        folder = createContentInContainer(self.ca, "Folder", title="Folder")
+        for index in range(count):
+            createContentInContainer(folder, "Document", title=f"Child {index}")
+        return folder
 
     def test_processes_a_queued_job(self):
         doc = createContentInContainer(self.ca, "Document", title="Hello")
@@ -90,7 +104,7 @@ class TestWorker(unittest.TestCase):
         folder = createContentInContainer(self.ca, "Folder", title="Folder")
         createContentInContainer(folder, "Document", title="Good")
         createContentInContainer(folder, "Document", title="Bad")
-        job = self._enqueue(folder, include_children=True)
+        job = self._enqueue(folder, include_context=False, include_children=True)
 
         original = ContentCopier.copy_fields_dexterity
 
@@ -139,6 +153,90 @@ class TestWorker(unittest.TestCase):
 
         self.assertEqual(self.queue.get(job.id).status, DONE)
         self.assertTrue(ITranslationManager(doc).has_translation("es"))
+
+    def test_processes_the_whole_tree_in_chunks(self):
+        folder = self._folder_with_children(3)
+        self._set_setting("chunk_size", 1)
+        job = self._enqueue(folder, include_context=False, include_children=True)
+
+        process_pending_jobs(self.portal)
+
+        job = self.queue.get(job.id)
+        self.assertEqual(job.status, DONE)
+        self.assertEqual(job.progress["processed"], 3)
+        self.assertEqual(job.cursor, 3)
+
+    def test_retries_a_failing_chunk_then_fails_the_job(self):
+        doc = createContentInContainer(self.ca, "Document", title="Hello")
+        self._set_setting("max_retries", 2)
+        job = self._enqueue(doc)
+
+        attempts = []
+
+        def always_fail(self, item, language):
+            attempts.append(item)
+            raise ValueError("boom")
+
+        with mock.patch.object(ContentCopier, "copy_item", always_fail):
+            process_pending_jobs(self.portal)
+
+        job = self.queue.get(job.id)
+        self.assertEqual(job.status, FAILED)
+        self.assertEqual(len(attempts), 3)  # the attempt plus two retries
+        self.assertIn("boom", job.last_error)
+
+    def test_resumes_a_running_job_from_its_cursor(self):
+        folder = self._folder_with_children(3)
+        self._set_setting("chunk_size", 1)
+        job = self._enqueue(folder, include_context=False, include_children=True)
+        # simulate a worker that stopped after committing the first chunk
+        job.status = RUNNING
+        job.cursor = 1
+        job.progress["processed"] = 1
+        transaction.commit()
+
+        copied = []
+        original = ContentCopier.copy_item
+
+        def record(self, item, language):
+            copied.append(item.getId())
+            return original(self, item, language)
+
+        with mock.patch.object(ContentCopier, "copy_item", record):
+            process_pending_jobs(self.portal)
+
+        job = self.queue.get(job.id)
+        self.assertEqual(job.status, DONE)
+        self.assertEqual(job.progress["processed"], 3)
+        self.assertEqual(len(copied), 2)  # the first unit was not redone
+
+    def test_running_job_stops_at_a_chunk_boundary_when_cancelled(self):
+        folder = self._folder_with_children(3)
+        self._set_setting("chunk_size", 1)
+        job = self._enqueue(folder, include_context=False, include_children=True)
+
+        copied = []
+        original = ContentCopier.copy_item
+
+        def cancel_after_first(self, item, language):
+            result = original(self, item, language)
+            copied.append(item)
+            if len(copied) == 1:
+                job.cancel_requested = True
+            return result
+
+        with mock.patch.object(ContentCopier, "copy_item", cancel_after_first):
+            process_pending_jobs(self.portal)
+
+        job = self.queue.get(job.id)
+        self.assertEqual(job.status, CANCELLED)
+        self.assertEqual(job.progress["processed"], 1)
+        # the first chunk was committed before the cancellation took effect,
+        # and the remaining items were left untouched
+        self.assertTrue(ITranslationManager(copied[0]).has_translation("es"))
+        not_copied = [child for child in folder.objectValues() if child not in copied]
+        self.assertTrue(not_copied)
+        self.assertFalse(ITranslationManager(not_copied[0]).has_translation("es"))
 
     def test_writes_a_heartbeat(self):
         store = get_job_store(self.portal)
