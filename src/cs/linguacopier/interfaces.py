@@ -19,7 +19,7 @@ class ILinguacopierSettings(Interface):
             "How a copy without an explicit mode is run: automatically, "
             "directly, or in the background."
         ),
-        values=("auto", "direct", "background"),
+        vocabulary="cs.linguacopier.CopyModes",
         default="auto",
     )
 
