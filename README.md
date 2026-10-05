@@ -17,7 +17,7 @@ it in another language to let the customer or translators translate it.
 
 This products provides an action with several options, which allows the content editor to recreate the contents of one section of the site in one or more languages, easing the work of the content editor.
 
-Disclaimer: this product does not effectively translate the contents (does not translate "House" to "Casa"), it just copies the actual content in the other language.
+Disclaimer: [check the documentation](https://codesyntax.github.io/cs.linguacopier/) to learn how this product can help you on effectively translating the content.
 
 ## Installation
 
