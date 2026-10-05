@@ -171,6 +171,11 @@ class ContentCopier:
                 self._order_targets(folders, language)
         return report
 
+    def child_brains(self):
+        """The catalog brains for the context and its descendants, in path order."""
+        pcat = api.portal.get_tool("portal_catalog")
+        return pcat(path="/".join(self.context.getPhysicalPath()))
+
     def items_to_copy(self, include_context=False, include_children=False):
         """Return the items a copy would touch, in processing order.
 
@@ -241,6 +246,28 @@ class ContentCopier:
         for index, obj_id in enumerate(ordered_ids):
             if obj_id in current_ids:
                 ordering.moveObjectToPosition(obj_id, index)
+
+    def count_items(self, include_context=False, include_children=False, limit=None):
+        """Return how many items a copy would touch, without loading them.
+
+        When ``limit`` is given, counting stops as soon as it is exceeded (the
+        result then only means "more than the limit"), so a huge tree is not
+        fully walked just to size it.
+        """
+        count = 0
+        if include_context:
+            count += 1
+            if limit is not None and count > limit:
+                return count
+        if include_children:
+            context_path = "/".join(self.context.getPhysicalPath())
+            for brain in self.child_brains():
+                if brain.getPath() == context_path:
+                    continue
+                count += 1
+                if limit is not None and count > limit:
+                    return count
+        return count
 
     def copy_item(self, item, language):
         """Copy one item into one language; return a ``CopyResult`` or ``CopyError``.
