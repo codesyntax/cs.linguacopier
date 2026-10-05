@@ -43,6 +43,16 @@ with a JSON body such as:
 
 The endpoint requires the **Manage portal** permission and always answers `200` with a per-object result. See the [documentation](https://codesyntax.github.io/cs.linguacopier/) for the full request and response contract.
 
+## Background copy jobs
+
+A large translated copy can be run in the background instead of inside the request. A copy is queued as a job when it is sent with `mode` set to `background`, or when the automatic mode decides the copy is big enough to defer. Queued jobs are processed by a worker you run as a separate command:
+
+```bash
+bin/instance run src/cs/linguacopier/worker.py
+```
+
+Schedule that command with cron or a systemd timer. The worker records a heartbeat and the status of every job, shown in the **Site Setup → Content copier** panels, where jobs can also be cancelled, retried or deleted. See the [documentation](https://codesyntax.github.io/cs.linguacopier/) for the settings and examples.
+
 ## Contribute
 
 - [Issue tracker](https://github.com/codesyntax/cs.linguacopier/issues)

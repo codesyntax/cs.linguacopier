@@ -7,6 +7,10 @@ from cs.linguacopier.copier import PARTIAL
 from cs.linguacopier.copier import SKIPPED
 from cs.linguacopier.copier import TRANSLATED
 from cs.linguacopier.copier import UPDATED
+from cs.linguacopier.jobs import enqueue_copy
+from cs.linguacopier.planner import BACKGROUND
+from cs.linguacopier.planner import plan
+from cs.linguacopier.settings import get_settings
 from logging import getLogger
 from plone import api
 from plone.app.z3cform.widgets.checkbox import CheckBoxFieldWidget
@@ -116,6 +120,16 @@ class ICopyContentToLanguage(Interface):
         required=False,
     )
 
+    mode = schema.Choice(
+        title=_("Copy mode"),
+        description=_(
+            "Run the copy directly, in the background, or let the copier "
+            "decide based on the amount of work."
+        ),
+        vocabulary="cs.linguacopier.CopyModes",
+        default="auto",
+    )
+
 
 class CopyContentToLanguage(form.Form):
 
@@ -135,6 +149,12 @@ class CopyContentToLanguage(form.Form):
     #: Whether the last copy asked for translation, so the report shows it.
     translate_requested = False
 
+    def updateWidgets(self):
+        super().updateWidgets()
+        # On a fresh GET, preselect the configured default mode.
+        if self.request.method != "POST":
+            self.widgets["mode"].value = get_settings().default_mode
+
     def updateActions(self, *args, **kwargs):
         super().updateActions(*args, **kwargs)
         self.actions["copy"].klass = self.actions["copy"].klass.replace(
@@ -153,11 +173,40 @@ class CopyContentToLanguage(form.Form):
                 "target_languages",
                 Invalid(_("This field is required")),
             )
+        target_languages = data.get("target_languages", [])
+        include_context = data.get("include_context", False)
+        include_children = data.get("include_children", False)
         self.translate_requested = bool(data.get("translate", False))
+
+        execution = plan(
+            self.context,
+            data.get("mode"),
+            target_languages,
+            include_context=include_context,
+            include_children=include_children,
+            translate=self.translate_requested,
+        )
+        if execution == BACKGROUND:
+            enqueue_copy(
+                self.context,
+                target_languages,
+                include_context=include_context,
+                include_children=include_children,
+                translate=self.translate_requested,
+                requested_by=api.user.get_current().getId(),
+            )
+            api.portal.show_message(
+                _("Copy job started in the background."), self.request
+            )
+            self.request.response.redirect(
+                f"{api.portal.get().absolute_url()}/@@linguacopier-jobs"
+            )
+            return
+
         self.report = ContentCopier(self.context).copy(
-            data.get("target_languages", []),
-            include_context=data.get("include_context", False),
-            include_children=data.get("include_children", False),
+            target_languages,
+            include_context=include_context,
+            include_children=include_children,
             translate=self.translate_requested,
         )
         log.info("done")

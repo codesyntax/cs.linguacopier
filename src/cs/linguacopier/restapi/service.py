@@ -6,8 +6,13 @@ form.
 """
 
 from cs.linguacopier.copier import ContentCopier
+from cs.linguacopier.jobs import enqueue_copy
 from cs.linguacopier.languages import current_language
 from cs.linguacopier.languages import target_language_vocabulary
+from cs.linguacopier.planner import BACKGROUND
+from cs.linguacopier.planner import MODES
+from cs.linguacopier.planner import plan
+from plone import api
 from plone.protect.interfaces import IDisableCSRFProtection
 from plone.restapi.deserializer import json_body
 from plone.restapi.services import Service
@@ -23,10 +28,30 @@ class CopyContentToLanguage(Service):
         include_context = bool(data.get("include_context", False))
         include_children = bool(data.get("include_children", False))
         translate = bool(data.get("translate", False))
+        raw_mode = data.get("mode")
 
-        errors = self._validate(target_languages, include_context, include_children)
+        errors = self._validate(
+            target_languages, include_context, include_children, raw_mode
+        )
         copied = []
         if not errors:
+            execution = plan(
+                self.context,
+                raw_mode,
+                target_languages,
+                include_context=include_context,
+                include_children=include_children,
+                translate=translate,
+            )
+            if execution == BACKGROUND:
+                job = self._enqueue(
+                    target_languages, include_context, include_children, translate
+                )
+                self.request.response.setStatus(202)
+                return {
+                    "@id": self.context.absolute_url(),
+                    "job": job.to_dict(),
+                }
             report = ContentCopier(self.context).copy(
                 target_languages,
                 include_context=include_context,
@@ -59,13 +84,31 @@ class CopyContentToLanguage(Service):
             "errors": errors,
         }
 
-    def _validate(self, target_languages, include_context, include_children):
+    def _enqueue(self, target_languages, include_context, include_children, translate):
+        return enqueue_copy(
+            self.context,
+            target_languages,
+            include_context=include_context,
+            include_children=include_children,
+            translate=translate,
+            requested_by=api.user.get_current().getId(),
+        )
+
+    def _validate(self, target_languages, include_context, include_children, mode):
         """Return request-level validation errors (context URL, no language)."""
         if not target_languages:
             return [
                 {
                     "@id": self.context.absolute_url(),
                     "message": "target_languages must not be empty",
+                }
+            ]
+
+        if mode is not None and mode not in MODES:
+            return [
+                {
+                    "@id": self.context.absolute_url(),
+                    "message": f"Unsupported mode: {mode}",
                 }
             ]
 

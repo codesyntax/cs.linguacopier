@@ -34,6 +34,12 @@ copy report
 best effort
     The copier isolates each object in a `transaction.savepoint`. A failure on one object is recorded and rolled back without aborting the rest of the copy.
 
+copy job
+    A copy queued to run in the background instead of inside the request. It is stored in the ZODB with its parameters, status, progress and errors, and is executed by the {term}`background worker`.
+
+background worker
+    The external command that processes queued {term}`copy job`s. It runs against the same database as the site, is scheduled with cron or a systemd timer, and writes a heartbeat the control panel reads.
+
 Plone
     [Plone](https://plone.org/) is an open source content management system used to create, edit, and manage digital content.
 ```

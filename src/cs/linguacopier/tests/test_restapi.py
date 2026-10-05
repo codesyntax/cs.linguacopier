@@ -1,8 +1,10 @@
 """Functional tests for the @copy-content-to REST service."""
 
 from cs.linguacopier.interfaces import ITranslateThings
+from cs.linguacopier.jobs import get_job_store
 from cs.linguacopier.testing import CS_LINGUACOPIER_RESTAPI_FUNCTIONAL_TESTING
 from cs.linguacopier.testing import FakeTranslationService
+from cs.linguacopier.worker import process_pending_jobs
 from plone.app.multilingual.interfaces import ITranslationManager
 
 try:
@@ -16,9 +18,11 @@ from plone.app.testing import SITE_OWNER_PASSWORD
 from plone.app.testing import TEST_USER_ID
 from plone.dexterity.interfaces import IDexterityContent
 from plone.dexterity.utils import createContentInContainer
+from plone.registry.interfaces import IRegistry
 from urllib.parse import urljoin
 from urllib.parse import urlparse
 from zope.component import getGlobalSiteManager
+from zope.component import getUtility
 
 import requests
 import transaction
@@ -214,6 +218,247 @@ class TestCopyContentTo(unittest.TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertNotIn("translation", response.json()["copied"][0])
+
+    def test_background_mode_enqueues_a_job_without_copying(self):
+        doc = self._create_document(title="Hello")
+
+        response = self.api_session.post(
+            self._endpoint(doc),
+            json={
+                "target_languages": ["es"],
+                "include_context": True,
+                "mode": "background",
+            },
+        )
+        self._abort()
+
+        self.assertEqual(response.status_code, 202)
+        job = response.json()["job"]
+        self.assertEqual(job["status"], "queued")
+        self.assertEqual(job["params"]["target_languages"], ["es"])
+        self.assertFalse(ITranslationManager(doc).has_translation("es"))
+
+    def test_background_job_is_processable_and_reported(self):
+        doc = self._create_document(title="Hello")
+        response = self.api_session.post(
+            self._endpoint(doc),
+            json={
+                "target_languages": ["es"],
+                "include_context": True,
+                "mode": "background",
+            },
+        )
+        self._abort()
+        job_id = response.json()["job"]["id"]
+
+        process_pending_jobs(self.portal)
+        transaction.commit()
+
+        response = self.api_session.get(f"{self.portal_url}/@copy-jobs/{job_id}")
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(payload["status"], "done")
+        self.assertEqual(payload["progress"]["created"], 1)
+        self.assertTrue(ITranslationManager(doc).has_translation("es"))
+
+    def test_copy_jobs_lists_jobs(self):
+        doc = self._create_document(title="Hello")
+        response = self.api_session.post(
+            self._endpoint(doc),
+            json={
+                "target_languages": ["es"],
+                "include_context": True,
+                "mode": "background",
+            },
+        )
+        self._abort()
+        job_id = response.json()["job"]["id"]
+
+        response = self.api_session.get(f"{self.portal_url}/@copy-jobs")
+
+        self.assertEqual(response.status_code, 200)
+        job_ids = [job["id"] for job in response.json()["jobs"]]
+        self.assertIn(job_id, job_ids)
+
+    def test_unknown_job_returns_404(self):
+        response = self.api_session.get(f"{self.portal_url}/@copy-jobs/nope")
+
+        self.assertEqual(response.status_code, 404)
+
+    def test_delete_cancels_a_queued_job(self):
+        doc = self._create_document(title="Hello")
+        response = self.api_session.post(
+            self._endpoint(doc),
+            json={
+                "target_languages": ["es"],
+                "include_context": True,
+                "mode": "background",
+            },
+        )
+        self._abort()
+        job_id = response.json()["job"]["id"]
+
+        response = self.api_session.delete(f"{self.portal_url}/@copy-jobs/{job_id}")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["status"], "cancelled")
+
+    def test_delete_a_running_job_requests_cancellation(self):
+        doc = self._create_document(title="Hello")
+        response = self.api_session.post(
+            self._endpoint(doc),
+            json={
+                "target_languages": ["es"],
+                "include_context": True,
+                "mode": "background",
+            },
+        )
+        self._abort()
+        job_id = response.json()["job"]["id"]
+        get_job_store(self.portal).jobs[job_id].status = "running"
+        transaction.commit()
+
+        response = self.api_session.delete(f"{self.portal_url}/@copy-jobs/{job_id}")
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(payload["status"], "running")
+        self.assertTrue(payload["cancel_requested"])
+
+    def test_delete_unknown_job_returns_404(self):
+        response = self.api_session.delete(f"{self.portal_url}/@copy-jobs/nope")
+
+        self.assertEqual(response.status_code, 404)
+
+    def test_unsupported_mode_is_rejected(self):
+        doc = self._create_document(title="Hello")
+
+        response = self.api_session.post(
+            self._endpoint(doc),
+            json={
+                "target_languages": ["es"],
+                "include_context": True,
+                "mode": "sideways",
+            },
+        )
+        self._abort()
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(payload["copied"], [])
+        self.assertIn("mode", payload["errors"][0]["message"].lower())
+
+    def _set_setting(self, name, value):
+        registry = getUtility(IRegistry)
+        registry[f"cs.linguacopier.{name}"] = value
+        transaction.commit()
+
+    def test_auto_translation_off_always_runs_direct(self):
+        self._set_setting("direct_max_items", 1)
+        folder = createContentInContainer(self.ca, "Folder", title="Folder")
+        createContentInContainer(folder, "Document", title="Child")
+        transaction.commit()
+
+        response = self.api_session.post(
+            self._endpoint(folder),
+            json={
+                "target_languages": ["es"],
+                "include_context": True,
+                "include_children": True,
+                "translate": False,
+            },
+        )
+        self._abort()
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.json()["copied"])
+
+    def test_auto_small_translated_copy_runs_direct(self):
+        self._set_setting("direct_max_items", 5)
+        doc = self._create_document(title="Hello")
+
+        response = self.api_session.post(
+            self._endpoint(doc),
+            json={
+                "target_languages": ["es"],
+                "include_context": True,
+                "translate": True,
+            },
+        )
+        self._abort()
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.json()["copied"])
+
+    def test_auto_big_translated_copy_runs_in_background(self):
+        self._set_setting("direct_max_items", 1)
+        folder = createContentInContainer(self.ca, "Folder", title="Folder")
+        createContentInContainer(folder, "Document", title="Child")
+        transaction.commit()
+
+        response = self.api_session.post(
+            self._endpoint(folder),
+            json={
+                "target_languages": ["es"],
+                "include_context": True,
+                "include_children": True,
+                "translate": True,
+            },
+        )
+        self._abort()
+
+        self.assertEqual(response.status_code, 202)
+        self.assertEqual(response.json()["job"]["status"], "queued")
+
+    def test_explicit_direct_overrides_the_threshold(self):
+        self._set_setting("direct_max_items", 1)
+        folder = createContentInContainer(self.ca, "Folder", title="Folder")
+        createContentInContainer(folder, "Document", title="Child")
+        transaction.commit()
+
+        response = self.api_session.post(
+            self._endpoint(folder),
+            json={
+                "target_languages": ["es"],
+                "include_context": True,
+                "include_children": True,
+                "translate": True,
+                "mode": "direct",
+            },
+        )
+        self._abort()
+
+        self.assertEqual(response.status_code, 200)
+
+    def test_explicit_background_overrides_the_threshold(self):
+        self._set_setting("direct_max_items", 1000)
+        doc = self._create_document(title="Hello")
+
+        response = self.api_session.post(
+            self._endpoint(doc),
+            json={
+                "target_languages": ["es"],
+                "include_context": True,
+                "translate": True,
+                "mode": "background",
+            },
+        )
+        self._abort()
+
+        self.assertEqual(response.status_code, 202)
+
+    def test_default_mode_setting_is_used(self):
+        self._set_setting("default_mode", "background")
+        doc = self._create_document(title="Hello")
+
+        response = self.api_session.post(
+            self._endpoint(doc),
+            json={"target_languages": ["es"], "include_context": True},
+        )
+        self._abort()
+
+        self.assertEqual(response.status_code, 202)
 
     def test_copy_context_to_language(self):
         doc = self._create_document(title="Hello")

@@ -40,4 +40,20 @@
       name="cs.linguacopier-hiddenprofiles"
       />
 
+  <utility
+      factory=".jobs.CopyJobQueue"
+      provides=".interfaces.ICopyJobQueue"
+      />
+
+  <genericsetup:upgradeSteps
+      profile="cs.linguacopier:default"
+      source="1000"
+      destination="1001"
+      >
+    <genericsetup:upgradeStep
+        title="Register the content copier control panels"
+        handler=".setuphandlers.upgrade_to_1001"
+        />
+  </genericsetup:upgradeSteps>
+
 </configure>

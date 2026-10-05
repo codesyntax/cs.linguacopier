@@ -13,6 +13,7 @@ from cs.linguacopier.copier import NOT_TRANSLATED
 from cs.linguacopier.copier import PARTIAL
 from cs.linguacopier.copier import sort_by_physical_path_length
 from cs.linguacopier.copier import TRANSLATED
+from cs.linguacopier.interfaces import ICopyJobQueue
 from cs.linguacopier.interfaces import ITranslateThings
 from cs.linguacopier.testing import CS_LINGUACOPIER_FUNCTIONAL_TESTING
 from cs.linguacopier.testing import CS_LINGUACOPIER_INTEGRATION_TESTING
@@ -32,6 +33,7 @@ from plone.app.testing import TEST_USER_ID
 from plone.app.textfield.value import RichTextValue
 from plone.dexterity.interfaces import IDexterityContent
 from plone.dexterity.utils import createContentInContainer
+from plone.registry.interfaces import IRegistry
 from Products.statusmessages.interfaces import IStatusMessage
 from unittest import mock
 from z3c.form.interfaces import WidgetActionExecutionError
@@ -43,6 +45,7 @@ from zope.interface import noLongerProvides
 from zope.intid.interfaces import IIntIds
 from zope.schema.interfaces import IVocabularyFactory
 
+import transaction
 import unittest
 
 
@@ -68,6 +71,7 @@ class TestHelpers(unittest.TestCase):
         self.assertTrue(ICopyContentToLanguage["include_context"].default)
         self.assertTrue(ICopyContentToLanguage["include_children"].default)
         self.assertTrue(ICopyContentToLanguage["target_languages"].required)
+        self.assertEqual(ICopyContentToLanguage["mode"].default, "auto")
 
 
 class TestReportViewModel(unittest.TestCase):
@@ -383,6 +387,98 @@ class TestCopier(unittest.TestCase):
         self.assertIn("cannot copy", report.errors[0].message)
         self.assertFalse(ITranslationManager(doc).has_translation("es"))
 
+    # items_to_copy / copy_item (the seams a background job drives)
+
+    def test_items_to_copy_context_only(self):
+        doc = self._create_document(title="Hello")
+
+        items = ContentCopier(doc).items_to_copy(include_context=True)
+
+        self.assertEqual(items, [doc])
+
+    def test_items_to_copy_children_only(self):
+        folder = createContentInContainer(self.ca, "Folder", title="Folder")
+        child = createContentInContainer(folder, "Document", title="Child")
+
+        items = ContentCopier(folder).items_to_copy(include_children=True)
+
+        self.assertEqual(items, [child])
+
+    def test_items_to_copy_context_and_children_in_order(self):
+        folder = createContentInContainer(self.ca, "Folder", title="Folder")
+        child = createContentInContainer(folder, "Folder", title="Child")
+        grandchild = createContentInContainer(child, "Document", title="Grandchild")
+
+        items = ContentCopier(folder).items_to_copy(
+            include_context=True, include_children=True
+        )
+
+        self.assertEqual(items, [folder, child, grandchild])
+
+    def test_items_to_copy_nothing_selected(self):
+        doc = self._create_document(title="Hello")
+
+        self.assertEqual(ContentCopier(doc).items_to_copy(), [])
+
+    def test_count_items(self):
+        folder = createContentInContainer(self.ca, "Folder", title="Folder")
+        createContentInContainer(folder, "Document", title="Child")
+        copier = ContentCopier(folder)
+
+        self.assertEqual(copier.count_items(), 0)
+        self.assertEqual(copier.count_items(include_context=True), 1)
+        self.assertEqual(copier.count_items(include_children=True), 1)
+        self.assertEqual(
+            copier.count_items(include_context=True, include_children=True), 2
+        )
+
+    def test_count_items_stops_once_over_the_limit(self):
+        folder = createContentInContainer(self.ca, "Folder", title="Folder")
+        for index in range(3):
+            createContentInContainer(folder, "Document", title=f"Child {index}")
+
+        count = ContentCopier(folder).count_items(include_children=True, limit=1)
+
+        # the limit was exceeded: only "more than the limit" is guaranteed
+        self.assertGreater(count, 1)
+
+    def test_copy_item_creates_then_updates(self):
+        doc = self._create_document(title="Hello")
+        copier = ContentCopier(doc)
+
+        created = copier.copy_item(doc, "es")
+        self.assertEqual(created.status, "created")
+        self.assertEqual(created.language, "es")
+        self.assertEqual(created.target, ITranslationManager(doc).get_translation("es"))
+        self.assertTrue(ITranslationManager(doc).has_translation("es"))
+
+        updated = copier.copy_item(doc, "es")
+        self.assertEqual(updated.status, "updated")
+
+    def test_copy_item_reports_an_unsupported_type_as_skipped(self):
+        lif = self.portal.portal_catalog(portal_type="LIF")[0].getObject()
+
+        result = ContentCopier(lif).copy_item(lif, "es")
+
+        self.assertEqual(result.status, "skipped")
+        self.assertEqual(result.target, lif)
+        self.assertFalse(ITranslationManager(lif).has_translation("es"))
+
+    def test_copy_item_returns_an_error_and_rolls_back(self):
+        doc = self._create_document(title="Hello")
+
+        def explode(self, source, target, key, field=None):
+            raise ValueError(f"cannot copy {key}")
+
+        with mock.patch.object(ContentCopier, "change_content", explode):
+            result = ContentCopier(doc).copy_item(doc, "es")
+
+        self.assertIsInstance(result, CopyError)
+        self.assertEqual(result.source, doc)
+        self.assertEqual(result.language, "es")
+        self.assertIn("cannot copy", result.message)
+        self.assertFalse(ITranslationManager(doc).has_translation("es"))
+
     # copy_content_to (button handler)
 
     def test_copy_content_to_include_context(self):
@@ -457,6 +553,65 @@ class TestCopier(unittest.TestCase):
         self.assertIsNotNone(form.report)
         self.assertEqual(form.report_counts["created"], 1)
         self.assertEqual(form.report_rows[0]["status"], "created")
+
+    def test_form_preselects_the_configured_default_mode(self):
+        registry = getUtility(IRegistry)
+        registry["cs.linguacopier.default_mode"] = "background"
+        transaction.commit()
+        doc = self._create_document(title="Hello")
+
+        form = self._form_for(doc)
+        form.update()
+
+        self.assertEqual(form.widgets["mode"].value, "background")
+
+    def test_background_submission_enqueues_a_job_and_redirects(self):
+        doc = self._create_document(title="Hello")
+        form = self._form_for(doc)
+        form.update()
+        form.extractData = lambda: (
+            {
+                "target_languages": ["es"],
+                "include_context": True,
+                "include_children": False,
+                "translate": False,
+                "mode": "background",
+            },
+            [],
+        )
+
+        form.copy_content_to(form, None)
+
+        jobs = getUtility(ICopyJobQueue).all()
+        self.assertEqual(len(jobs), 1)
+        self.assertEqual(jobs[0].params["target_languages"], ["es"])
+        self.assertFalse(ITranslationManager(doc).has_translation("es"))
+        self.assertIn(
+            "@@linguacopier-jobs", self.request.response.getHeader("Location")
+        )
+        messages = IStatusMessage(self.request).show()
+        self.assertTrue(any("background" in str(m.message) for m in messages))
+
+    def test_direct_submission_copies_inline(self):
+        doc = self._create_document(title="Hello")
+        form = self._form_for(doc)
+        form.update()
+        form.extractData = lambda: (
+            {
+                "target_languages": ["es"],
+                "include_context": True,
+                "include_children": False,
+                "translate": False,
+                "mode": "direct",
+            },
+            [],
+        )
+
+        form.copy_content_to(form, None)
+
+        self.assertTrue(ITranslationManager(doc).has_translation("es"))
+        self.assertIsNotNone(form.report)
+        self.assertEqual(getUtility(ICopyJobQueue).all(), [])
 
     def test_copy_content_to_report_includes_failures(self):
         class ExplodingTranslator:
@@ -639,6 +794,19 @@ class TestCopyTransaction(unittest.TestCase):
         self.assertEqual([r.status for r in report.successes], ["created"])
         self.assertTrue(ITranslationManager(doc).has_translation("es"))
 
+    def test_copy_item_does_not_commit(self):
+        portal = self.layer["portal"]
+        setRoles(portal, TEST_USER_ID, ["Manager"])
+        doc = createContentInContainer(portal["ca"], "Document", title="Hello")
+
+        result = ContentCopier(doc).copy_item(doc, "es")
+
+        # The caller owns the transaction boundaries: copy_item must not commit.
+        # IntegrationTesting replaces transaction.commit with a guard that
+        # raises; reaching here proves copy_item leaves the transaction open.
+        self.assertEqual(result.status, "created")
+        self.assertTrue(ITranslationManager(doc).has_translation("es"))
+
 
 @unittest.skipUnless(
     IExternalTranslationService, "external translation API not installed"
@@ -668,6 +836,18 @@ class TestTranslateOnCopy(unittest.TestCase):
 
         ContentCopier(doc).copy(["es"], include_context=True, translate=True)
 
+        translated = ITranslationManager(doc).get_translation("es")
+        self.assertEqual(translated.title, "[es] Hello")
+        self.assertEqual(translated.description, "[es] World")
+
+    def test_copy_item_translates_when_configured(self):
+        doc = self._document(title="Hello", description="World")
+        copier = ContentCopier(doc)
+        copier.translate = True
+
+        result = copier.copy_item(doc, "es")
+
+        self.assertEqual(result.translation, TRANSLATED)
         translated = ITranslationManager(doc).get_translation("es")
         self.assertEqual(translated.title, "[es] Hello")
         self.assertEqual(translated.description, "[es] World")

@@ -1,0 +1,115 @@
+<html xmlns="http://www.w3.org/1999/xhtml"
+      xmlns:i18n="http://xml.zope.org/namespaces/i18n"
+      xmlns:metal="http://xml.zope.org/namespaces/metal"
+      xmlns:tal="http://xml.zope.org/namespaces/tal"
+      metal:use-macro="context/main_template/macros/master"
+      i18n:domain="cs.linguacopier"
+>
+  <body metal:fill-slot="body">
+
+    <h1 i18n:translate="">Copy jobs</h1>
+
+    <div class="alert alert-warning"
+         role="status"
+         tal:condition="view/heartbeat_is_stale"
+    >
+      <span i18n:translate="">No background worker has run recently. Queued jobs will not progress until the worker is scheduled.</span>
+    </div>
+
+    <div class="alert alert-info"
+         role="status"
+         tal:condition="not:view/heartbeat_is_stale"
+    >
+      <span i18n:translate="">The background worker is running.</span>
+    </div>
+
+    <table class="table table-striped"
+           tal:condition="view/jobs"
+    >
+      <thead>
+        <tr>
+          <th i18n:translate="">Id</th>
+          <th i18n:translate="">Status</th>
+          <th i18n:translate="">Context</th>
+          <th i18n:translate="">Languages</th>
+          <th i18n:translate="">Progress</th>
+          <th i18n:translate="">Requested by</th>
+          <th i18n:translate="">Created</th>
+          <th i18n:translate="">Started</th>
+          <th i18n:translate="">Finished</th>
+          <th i18n:translate="">Errors</th>
+          <th i18n:translate="">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr tal:repeat="job view/jobs">
+          <td tal:content="python: job.id[:8]">id</td>
+          <td tal:content="python: view.status_label(job.status)">Queued</td>
+          <td tal:content="python: ' / '.join(job.params.get('context_path', []))">path</td>
+          <td tal:content="python: ', '.join(job.params.get('target_languages', []))">es</td>
+          <td>
+            <span tal:replace="python: view.progress_percent(job)">0</span>%
+            (<span tal:replace="job/progress/processed">0</span>/<span tal:replace="job/progress/total">0</span>)
+          </td>
+          <td tal:content="job/requested_by">user</td>
+          <td tal:content="python: view.format_time(job.created)">date</td>
+          <td tal:content="python: view.format_time(job.started)">date</td>
+          <td tal:content="python: view.format_time(job.finished)">date</td>
+          <td>
+            <tal:block tal:condition="job/errors">
+              <span tal:replace="python: len(job.errors)">0</span>:
+              <span tal:replace="job/last_error">error</span>
+            </tal:block>
+          </td>
+          <td>
+            <form class="d-inline"
+                  method="post"
+                  tal:attributes="
+                    action view/request/getURL;
+                  "
+            >
+              <input name="_authenticator"
+                     type="hidden"
+                     tal:attributes="
+                       value view/csrf_token;
+                     "
+              />
+              <input name="job_id"
+                     type="hidden"
+                     tal:attributes="
+                       value job/id;
+                     "
+              />
+              <button class="btn btn-sm btn-warning"
+                      name="action"
+                      type="submit"
+                      value="cancel"
+                      tal:condition="python: job.status in ('queued', 'running')"
+                      i18n:translate=""
+              >Cancel</button>
+              <button class="btn btn-sm btn-secondary"
+                      name="action"
+                      type="submit"
+                      value="retry"
+                      tal:condition="python: job.status in ('done', 'failed', 'cancelled')"
+                      i18n:translate=""
+              >Retry</button>
+              <button class="btn btn-sm btn-danger"
+                      name="action"
+                      type="submit"
+                      value="delete"
+                      tal:condition="python: job.status != 'running'"
+                      i18n:translate=""
+              >Delete</button>
+            </form>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p tal:condition="not:view/jobs"
+       i18n:translate=""
+    >There are no copy jobs.</p>
+
+  </body>
+</html>

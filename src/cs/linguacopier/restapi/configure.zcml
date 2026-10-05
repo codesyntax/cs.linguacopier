@@ -15,4 +15,20 @@
       name="@copy-content-to"
       />
 
+  <plone:service
+      method="GET"
+      factory=".copyjobs.CopyJobsGet"
+      for="*"
+      permission="cmf.ManagePortal"
+      name="@copy-jobs"
+      />
+
+  <plone:service
+      method="DELETE"
+      factory=".copyjobs.CopyJobsDelete"
+      for="*"
+      permission="cmf.ManagePortal"
+      name="@copy-jobs"
+      />
+
 </configure>

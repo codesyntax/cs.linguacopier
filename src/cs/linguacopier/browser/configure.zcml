@@ -14,6 +14,22 @@
       zcml:condition="installed plone.app.multilingual"
       />
 
+  <browser:page
+      name="linguacopier-settings"
+      for="plone.base.interfaces.IPloneSiteRoot"
+      class=".controlpanel.LinguacopierSettingsView"
+      permission="cmf.ManagePortal"
+      layer="cs.linguacopier.interfaces.ICsLinguacopierLayer"
+      />
+
+  <browser:page
+      name="linguacopier-jobs"
+      for="plone.base.interfaces.IPloneSiteRoot"
+      class=".controlpanel.JobsView"
+      permission="cmf.ManagePortal"
+      layer="cs.linguacopier.interfaces.ICsLinguacopierLayer"
+      />
+
   <browser:resource
       name="cs.linguacopier.export.js"
       file="resources/export.js"
@@ -23,6 +39,12 @@
       provides="zope.schema.interfaces.IVocabularyFactory"
       name="cs.linguacopier.AvailableTargetLanguages"
       component=".vocabularies.AvailableTargetLanguagesFactory"
+      />
+
+  <utility
+      provides="zope.schema.interfaces.IVocabularyFactory"
+      name="cs.linguacopier.CopyModes"
+      component=".vocabularies.CopyModesFactory"
       />
 
 </configure>
