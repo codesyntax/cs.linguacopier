@@ -92,6 +92,12 @@ class ICopyJobQueue(Interface):
     def cancel(job_id):
         """Cancel a job; return it, or ``None`` when it does not exist."""
 
+    def retry(job_id):
+        """Re-queue a finished or failed job with the same parameters."""
+
+    def delete(job_id):
+        """Remove a job; return whether it existed."""
+
 
 class ITranslateThings(Interface):
     """This is a multi adapter on (original_item, translated_item)
