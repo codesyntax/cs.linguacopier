@@ -2,7 +2,10 @@ from cs.linguacopier import _
 from cs.linguacopier import languages
 from cs.linguacopier.copier import ContentCopier
 from cs.linguacopier.copier import CREATED
+from cs.linguacopier.copier import NOT_TRANSLATED
+from cs.linguacopier.copier import PARTIAL
 from cs.linguacopier.copier import SKIPPED
+from cs.linguacopier.copier import TRANSLATED
 from cs.linguacopier.copier import UPDATED
 from logging import getLogger
 from plone import api
@@ -46,6 +49,7 @@ def report_rows(report):
             "object": result.target,
             "language": result.language,
             "status": result.status,
+            "translation": result.translation,
             "message": "",
         }
         for result in report.successes
@@ -55,11 +59,23 @@ def report_rows(report):
             "object": error.source,
             "language": error.language,
             "status": FAILED,
+            "translation": None,
             "message": error.message,
         }
         for error in report.errors
     ]
     return rows
+
+
+def translation_counts(report):
+    """Return ``{translated, partial, not_translated}`` counts for a report."""
+    counts = {TRANSLATED: 0, PARTIAL: 0, NOT_TRANSLATED: 0}
+    if report is None:
+        return counts
+    for result in report.successes:
+        if result.translation in counts:
+            counts[result.translation] += 1
+    return counts
 
 
 class ICopyContentToLanguage(Interface):
@@ -90,6 +106,16 @@ class ICopyContentToLanguage(Interface):
         required=True,
     )
 
+    translate = schema.Bool(
+        title=_("Translate the copied content?"),
+        description=_(
+            "Translate the field values with the configured external "
+            "translation service, when one is available."
+        ),
+        default=False,
+        required=False,
+    )
+
 
 class CopyContentToLanguage(form.Form):
 
@@ -105,6 +131,9 @@ class CopyContentToLanguage(form.Form):
 
     #: Set by the button handler; the template renders it as the report table.
     report = None
+
+    #: Whether the last copy asked for translation, so the report shows it.
+    translate_requested = False
 
     def updateActions(self, *args, **kwargs):
         super().updateActions(*args, **kwargs)
@@ -124,10 +153,12 @@ class CopyContentToLanguage(form.Form):
                 "target_languages",
                 Invalid(_("This field is required")),
             )
+        self.translate_requested = bool(data.get("translate", False))
         self.report = ContentCopier(self.context).copy(
             data.get("target_languages", []),
             include_context=data.get("include_context", False),
             include_children=data.get("include_children", False),
+            translate=self.translate_requested,
         )
         log.info("done")
         api.portal.show_message(self._summary_message(), type=self._message_type())
@@ -162,6 +193,15 @@ class CopyContentToLanguage(form.Form):
     def report_rows(self):
         return report_rows(self.report)
 
+    @property
+    def translation_counts(self):
+        return translation_counts(self.report)
+
+    @property
+    def show_translation(self):
+        """Whether translation was requested, so its column and count show."""
+        return self.translate_requested
+
     def status_label(self, status):
         return {
             CREATED: _("Created"),
@@ -169,3 +209,10 @@ class CopyContentToLanguage(form.Form):
             SKIPPED: _("Skipped"),
             FAILED: _("Failed"),
         }.get(status, status)
+
+    def translation_label(self, outcome):
+        return {
+            TRANSLATED: _("Translated"),
+            PARTIAL: _("Partial"),
+            NOT_TRANSLATED: _("Not translated"),
+        }.get(outcome, "")

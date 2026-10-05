@@ -4,15 +4,28 @@ from cs.linguacopier.browser.copier import CopyContentToLanguage
 from cs.linguacopier.browser.copier import ICopyContentToLanguage
 from cs.linguacopier.browser.copier import report_counts
 from cs.linguacopier.browser.copier import report_rows
+from cs.linguacopier.browser.copier import translation_counts
 from cs.linguacopier.copier import ContentCopier
 from cs.linguacopier.copier import CopyError
 from cs.linguacopier.copier import CopyReport
 from cs.linguacopier.copier import CopyResult
+from cs.linguacopier.copier import NOT_TRANSLATED
+from cs.linguacopier.copier import PARTIAL
 from cs.linguacopier.copier import sort_by_physical_path_length
+from cs.linguacopier.copier import TRANSLATED
 from cs.linguacopier.interfaces import ITranslateThings
 from cs.linguacopier.testing import CS_LINGUACOPIER_FUNCTIONAL_TESTING
 from cs.linguacopier.testing import CS_LINGUACOPIER_INTEGRATION_TESTING
+from cs.linguacopier.testing import FakeTranslationService
+from plone.app.dexterity.behaviors.metadata import IBasic
+from plone.app.multilingual.dx.interfaces import ILanguageIndependentField
 from plone.app.multilingual.interfaces import ITranslationManager
+
+try:
+    from plone.app.multilingual.interfaces import IExternalTranslationService
+except ImportError:
+    IExternalTranslationService = None
+
 from plone.app.relationfield.behavior import IRelatedItems
 from plone.app.testing import setRoles
 from plone.app.testing import TEST_USER_ID
@@ -25,6 +38,8 @@ from z3c.form.interfaces import WidgetActionExecutionError
 from z3c.relationfield import RelationValue
 from zope.component import getGlobalSiteManager
 from zope.component import getUtility
+from zope.interface import alsoProvides
+from zope.interface import noLongerProvides
 from zope.intid.interfaces import IIntIds
 from zope.schema.interfaces import IVocabularyFactory
 
@@ -61,9 +76,24 @@ class TestReportViewModel(unittest.TestCase):
         source = DummyContent(("plone", "ca", "bad"))
         return CopyReport(
             successes=[
-                CopyResult(target=target, language="es", status="created"),
-                CopyResult(target=target, language="ca", status="updated"),
-                CopyResult(target=target, language="es", status="skipped"),
+                CopyResult(
+                    target=target,
+                    language="es",
+                    status="created",
+                    translation=TRANSLATED,
+                ),
+                CopyResult(
+                    target=target,
+                    language="ca",
+                    status="updated",
+                    translation=PARTIAL,
+                ),
+                CopyResult(
+                    target=target,
+                    language="es",
+                    status="skipped",
+                    translation=NOT_TRANSLATED,
+                ),
             ],
             errors=[CopyError(source=source, language="es", message="boom")],
         )
@@ -87,6 +117,19 @@ class TestReportViewModel(unittest.TestCase):
         self.assertEqual(failure["object"], report.errors[0].source)
         self.assertEqual(failure["language"], "es")
         self.assertEqual(failure["message"], "boom")
+        self.assertIsNone(failure["translation"])
+
+    def test_translation_counts(self):
+        self.assertEqual(
+            translation_counts(self._report()),
+            {"translated": 1, "partial": 1, "not_translated": 1},
+        )
+
+    def test_translation_counts_of_none(self):
+        self.assertEqual(
+            translation_counts(None),
+            {"translated": 0, "partial": 0, "not_translated": 0},
+        )
 
     def test_none_report_is_tolerated(self):
         # the form template evaluates the counts before its condition guard,
@@ -235,6 +278,32 @@ class TestCopier(unittest.TestCase):
         related_es = ITranslationManager(related).get_translation("es")
         self.assertEqual(len(translated.relatedItems), 1)
         self.assertEqual(translated.relatedItems[0].to_object, related_es)
+
+    def test_language_independent_relation_is_left_to_pam(self):
+        # relatedItems is marked language-independent in the test fixture.
+        # The copier skips it; plone.app.multilingual copies it when it creates
+        # the translation and remaps the relation to the target-language object.
+        related = self._create_document(title="Related")
+        doc = self._create_document(title="Main")
+        ITranslationManager(related).add_translation("es")
+
+        intids = getUtility(IIntIds)
+        try:
+            related_id = intids.getId(related)
+        except KeyError:
+            related_id = intids.register(related)
+        doc.relatedItems = [RelationValue(related_id)]
+
+        report = self._copy(doc, ["es"])
+
+        translated = ITranslationManager(doc).get_translation("es")
+        related_es = ITranslationManager(related).get_translation("es")
+        self.assertEqual([r.status for r in report.successes], ["created"])
+        self.assertEqual(len(translated.relatedItems), 1)
+        # the relation was remapped to the Spanish translation of the target...
+        self.assertEqual(translated.relatedItems[0].to_object, related_es)
+        # ...and not left pointing at the source-language object
+        self.assertNotEqual(translated.relatedItems[0].to_object, related)
 
     def test_copy_reports_skipped_lif(self):
         brains = self.portal.portal_catalog(portal_type="LIF")
@@ -459,6 +528,65 @@ class TestCopier(unittest.TestCase):
 
         self.assertNotIn("linguacopier-report-items", html)
 
+    def test_report_renders_translation_column_when_translating(self):
+        doc = self._create_document(title="Hello")
+        form = self._form_for(doc)
+        form.update()
+        form.extractData = lambda: (
+            {
+                "target_languages": ["es"],
+                "include_context": True,
+                "include_children": False,
+                "translate": True,
+            },
+            [],
+        )
+        form.copy_content_to(form, None)
+
+        html = form.render()
+
+        self.assertIn("linguacopier-report-translations", html)
+        self.assertIn("Translation", html)
+        self.assertIn("Not translated", html)
+
+    def test_report_hides_translation_column_when_not_translating(self):
+        doc = self._create_document(title="Hello")
+        form = self._form_for(doc)
+        form.update()
+        form.extractData = lambda: (
+            {
+                "target_languages": ["es"],
+                "include_context": True,
+                "include_children": False,
+            },
+            [],
+        )
+        form.copy_content_to(form, None)
+
+        html = form.render()
+
+        self.assertNotIn("linguacopier-report-translations", html)
+        self.assertNotIn("Not translated", html)
+
+    def test_report_shows_translation_column_when_everything_skipped(self):
+        lif = self.portal.portal_catalog(portal_type="LIF")[0].getObject()
+        form = self._form_for(lif)
+        form.update()
+        form.extractData = lambda: (
+            {
+                "target_languages": ["es"],
+                "include_context": True,
+                "include_children": False,
+                "translate": True,
+            },
+            [],
+        )
+        form.copy_content_to(form, None)
+
+        html = form.render()
+
+        self.assertIn("linguacopier-report-translations", html)
+
     def _target_languages(self, context):
         factory = getUtility(
             IVocabularyFactory, "cs.linguacopier.AvailableTargetLanguages"
@@ -510,3 +638,203 @@ class TestCopyTransaction(unittest.TestCase):
         # raises; reaching here proves the pipeline never commits mid-request.
         self.assertEqual([r.status for r in report.successes], ["created"])
         self.assertTrue(ITranslationManager(doc).has_translation("es"))
+
+
+@unittest.skipUnless(
+    IExternalTranslationService, "external translation API not installed"
+)
+class TestTranslateOnCopy(unittest.TestCase):
+    layer = CS_LINGUACOPIER_FUNCTIONAL_TESTING
+
+    def setUp(self):
+        self.portal = self.layer["portal"]
+        setRoles(self.portal, TEST_USER_ID, ["Manager"])
+        self.ca = self.portal["ca"]
+        self.service = FakeTranslationService()
+        getGlobalSiteManager().registerUtility(
+            self.service, IExternalTranslationService, name="test-translator"
+        )
+
+    def tearDown(self):
+        getGlobalSiteManager().unregisterUtility(
+            self.service, IExternalTranslationService, name="test-translator"
+        )
+
+    def _document(self, **kwargs):
+        return createContentInContainer(self.ca, "Document", **kwargs)
+
+    def test_translates_scalar_text_fields(self):
+        doc = self._document(title="Hello", description="World")
+
+        ContentCopier(doc).copy(["es"], include_context=True, translate=True)
+
+        translated = ITranslationManager(doc).get_translation("es")
+        self.assertEqual(translated.title, "[es] Hello")
+        self.assertEqual(translated.description, "[es] World")
+
+    def test_translate_off_keeps_values(self):
+        doc = self._document(title="Hello", description="World")
+
+        ContentCopier(doc).copy(["es"], include_context=True)
+
+        translated = ITranslationManager(doc).get_translation("es")
+        self.assertEqual(translated.title, "Hello")
+        self.assertEqual(translated.description, "World")
+        self.assertEqual(self.service.calls, [])
+
+    def test_translates_rich_text_and_preserves_markup(self):
+        doc = self._document(
+            title="Hello",
+            text=RichTextValue(
+                "<p>Hello <strong>world</strong></p>", "text/html", "text/x-html-safe"
+            ),
+        )
+
+        ContentCopier(doc).copy(["es"], include_context=True, translate=True)
+
+        translated = ITranslationManager(doc).get_translation("es")
+        self.assertEqual(
+            translated.text.raw, "[es] <p>Hello <strong>world</strong></p>"
+        )
+        # the raw HTML is what is fed to the service
+        self.assertIn(
+            ("<p>Hello <strong>world</strong></p>", "ca", "es"), self.service.calls
+        )
+
+    def test_empty_rich_text_is_not_translated(self):
+        doc = self._document(
+            title="Hello",
+            text=RichTextValue("", "text/html", "text/x-html-safe"),
+        )
+
+        ContentCopier(doc).copy(["es"], include_context=True, translate=True)
+
+        self.assertNotIn("", [call[0] for call in self.service.calls])
+
+    def test_translate_off_keeps_rich_text(self):
+        doc = self._document(
+            title="Hello",
+            text=RichTextValue("<p>Hello</p>", "text/html", "text/x-html-safe"),
+        )
+
+        ContentCopier(doc).copy(["es"], include_context=True)
+
+        translated = ITranslationManager(doc).get_translation("es")
+        self.assertEqual(translated.text.raw, "<p>Hello</p>")
+        self.assertEqual(self.service.calls, [])
+
+    def test_language_independent_field_is_not_copied(self):
+        doc = self._document(title="Hello", description="World")
+        field = IBasic["title"]
+        alsoProvides(field, ILanguageIndependentField)
+        copied_keys = []
+        original = ContentCopier.change_content
+
+        def record(self, source, target, key, schema_field=None):
+            copied_keys.append(key)
+            return original(self, source, target, key, schema_field)
+
+        try:
+            with mock.patch.object(ContentCopier, "change_content", record):
+                ContentCopier(doc).copy(["es"], include_context=True, translate=True)
+        finally:
+            noLongerProvides(field, ILanguageIndependentField)
+
+        # the language-independent title is left to plone.app.multilingual
+        self.assertNotIn("title", copied_keys)
+        # an ordinary field on the same object is copied and translated
+        self.assertIn("description", copied_keys)
+        translated = ITranslationManager(doc).get_translation("es")
+        self.assertEqual(translated.description, "[es] World")
+        self.assertEqual(translated.title, "Hello")
+
+    def test_empty_values_are_not_translated(self):
+        doc = self._document(title="Hello", description="")
+
+        ContentCopier(doc).copy(["es"], include_context=True, translate=True)
+
+        self.assertTrue(self.service.calls)
+        self.assertNotIn("", [call[0] for call in self.service.calls])
+
+    def test_string_lists_are_not_translated(self):
+        doc = self._document(title="Hello")
+        doc.subjects = ("one", "two")
+        self.assertIn("one", doc.subjects)
+
+        ContentCopier(doc).copy(["es"], include_context=True, translate=True)
+
+        self.assertNotIn("one", [call[0] for call in self.service.calls])
+
+    def test_reports_fully_translated(self):
+        doc = self._document(title="Hello", description="World")
+
+        report = ContentCopier(doc).copy(["es"], include_context=True, translate=True)
+
+        self.assertEqual(report.successes[0].translation, TRANSLATED)
+
+    def test_reports_partial_translation(self):
+        self.service.skip = {"World"}
+        doc = self._document(title="Hello", description="World")
+
+        report = ContentCopier(doc).copy(["es"], include_context=True, translate=True)
+
+        self.assertEqual(report.successes[0].translation, PARTIAL)
+        translated = ITranslationManager(doc).get_translation("es")
+        self.assertEqual(translated.title, "[es] Hello")
+        self.assertEqual(translated.description, "World")
+
+    def test_reports_not_translated_when_nothing_matches(self):
+        self.service.skip = {"Hello", "World"}
+        doc = self._document(title="Hello", description="World")
+
+        report = ContentCopier(doc).copy(["es"], include_context=True, translate=True)
+
+        self.assertEqual(report.successes[0].translation, NOT_TRANSLATED)
+
+    def test_no_translation_outcome_when_option_off(self):
+        doc = self._document(title="Hello")
+
+        report = ContentCopier(doc).copy(["es"], include_context=True)
+
+        self.assertIsNone(report.successes[0].translation)
+
+    def test_language_independent_field_alone_counts_as_not_translated(self):
+        doc = self._document(title="Hello")
+        field = IBasic["title"]
+        alsoProvides(field, ILanguageIndependentField)
+        try:
+            report = ContentCopier(doc).copy(
+                ["es"], include_context=True, translate=True
+            )
+        finally:
+            noLongerProvides(field, ILanguageIndependentField)
+
+        self.assertEqual(report.successes[0].translation, NOT_TRANSLATED)
+        self.assertEqual(self.service.calls, [])
+
+
+@unittest.skipUnless(
+    IExternalTranslationService, "external translation API not installed"
+)
+class TestTranslateFallback(unittest.TestCase):
+    layer = CS_LINGUACOPIER_FUNCTIONAL_TESTING
+
+    def setUp(self):
+        self.portal = self.layer["portal"]
+        setRoles(self.portal, TEST_USER_ID, ["Manager"])
+        self.ca = self.portal["ca"]
+
+    def test_no_service_keeps_original_values(self):
+        doc = createContentInContainer(self.ca, "Document", title="Hello")
+
+        ContentCopier(doc).copy(["es"], include_context=True, translate=True)
+
+        translated = ITranslationManager(doc).get_translation("es")
+        self.assertEqual(translated.title, "Hello")
+
+    def test_no_service_reports_not_translated(self):
+        doc = createContentInContainer(self.ca, "Document", title="Hello")
+
+        report = ContentCopier(doc).copy(["es"], include_context=True, translate=True)
+
+        self.assertEqual(report.successes[0].translation, NOT_TRANSLATED)
