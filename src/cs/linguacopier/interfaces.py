@@ -98,6 +98,9 @@ class ICopyJobQueue(Interface):
     def delete(job_id):
         """Remove a job; return whether it existed."""
 
+    def prune(retention_days=None, max_jobs=None):
+        """Remove finished jobs past the age limit or the maximum count."""
+
 
 class ITranslateThings(Interface):
     """This is a multi adapter on (original_item, translated_item)
