@@ -29,7 +29,7 @@ If a translation service is configured in Plone — for example Google Translate
 - When nothing can translate a value, the original is kept and the copy is not aborted.
 - The copy report shows, per object, whether it was translated, partially translated, or left as-is.
 
-Translation is optional. Without a configured service — or without the (unreleased) `plone.app.multilingual` external-translation API — the copy behaves exactly like a plain copy.
+Translation is optional. Without a configured service — or without the (merged but unreleased) `plone.app.multilingual` [external-translation API](https://github.com/plone/plone.app.multilingual/pull/468) — the copy behaves exactly like a plain copy.
 
 ## Installation
 
