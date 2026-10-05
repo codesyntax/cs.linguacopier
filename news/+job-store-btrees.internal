@@ -1,0 +1,4 @@
+Store background copy jobs — and their ordering and per-job records — in BTrees
+instead of the monolithic persistent mapping and list objects, so editing the job
+store rewrites only the affected buckets rather than re-serialising a whole
+structure into the ZODB on every change.
