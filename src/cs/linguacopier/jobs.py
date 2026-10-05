@@ -45,12 +45,21 @@ class CopyJob(Persistent):
 
     def __init__(self, params, requested_by=""):
         self.id = uuid.uuid4().hex
-        self.status = QUEUED
         self.params = PersistentMapping(params)
         self.requested_by = requested_by
         self.created = now()
+        self.reset()
+
+    def reset(self):
+        """Return the job to a fresh, queued state (used by retry)."""
+        self.status = QUEUED
         self.started = None
         self.finished = None
+        #: Number of completed work units, kept for resuming a restarted worker.
+        self.cursor = None
+        self.cancel_requested = False
+        self.errors = PersistentList()
+        self.last_error = None
         self.progress = PersistentMapping(
             {
                 "total": 0,
@@ -64,11 +73,6 @@ class CopyJob(Persistent):
         self.translation = PersistentMapping(
             {"translated": 0, "partial": 0, "not_translated": 0}
         )
-        #: Last completed item, kept for resuming a restarted worker.
-        self.cursor = None
-        self.cancel_requested = False
-        self.errors = PersistentList()
-        self.last_error = None
 
     def add_error(self, source, language, message):
         self.errors.append({"source": source, "language": language, "message": message})
@@ -155,3 +159,20 @@ class CopyJobQueue:
         elif job.status == RUNNING:
             job.cancel_requested = True
         return job
+
+    def retry(self, job_id):
+        job = self.get(job_id)
+        if job is None or job.status in (QUEUED, RUNNING):
+            return job
+        job.reset()
+        return job
+
+    def delete(self, job_id):
+        store = get_job_store()
+        job = store.jobs.get(job_id)
+        if job is None or job.status == RUNNING:
+            return False
+        del store.jobs[job_id]
+        if job_id in store.order:
+            store.order.remove(job_id)
+        return True

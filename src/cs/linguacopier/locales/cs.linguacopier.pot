@@ -4,7 +4,7 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
-"POT-Creation-Date: 2026-10-05 07:33+0000\n"
+"POT-Creation-Date: 2026-10-05 08:19+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI +ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -17,16 +17,46 @@ msgstr ""
 "Preferred-Encodings: utf-8 latin1\n"
 "Domain: cs.linguacopier\n"
 
+#: cs/linguacopier/browser/jobs.pt:39
+msgid "Actions"
+msgstr ""
+
 #: cs/linguacopier/interfaces.py:36
 msgid "Background chunk size"
+msgstr ""
+
+#: cs/linguacopier/browser/jobs.pt:81
+msgid "Cancel"
+msgstr ""
+
+#: cs/linguacopier/browser/controlpanel.py:116
+msgid "Cancelled"
+msgstr ""
+
+#: cs/linguacopier/browser/controlpanel.py:35
+msgid "Configure the content copier and how its background jobs are run."
+msgstr ""
+
+#: cs/linguacopier/browser/controlpanel.py:34
+#: cs/linguacopier/profiles/default/controlpanel.xml
+msgid "Content copier"
 msgstr ""
 
 #: cs/linguacopier/browser/copier.py:170
 msgid "Contents copied successfully"
 msgstr ""
 
+#: cs/linguacopier/browser/jobs.pt:31
+msgid "Context"
+msgstr ""
+
 #: cs/linguacopier/browser/copier.py:144
 msgid "Copy content"
+msgstr ""
+
+#: cs/linguacopier/browser/jobs.pt:10
+#: cs/linguacopier/profiles/default/controlpanel.xml
+msgid "Copy jobs"
 msgstr ""
 
 #: cs/linguacopier/browser/copier.pt:32
@@ -39,11 +69,16 @@ msgstr ""
 
 #: cs/linguacopier/browser/copier.pt:47
 #: cs/linguacopier/browser/copier.py:207
+#: cs/linguacopier/browser/jobs.pt:35
 msgid "Created"
 msgstr ""
 
 #: cs/linguacopier/interfaces.py:17
 msgid "Default copy mode"
+msgstr ""
+
+#: cs/linguacopier/browser/jobs.pt:95
+msgid "Delete"
 msgstr ""
 
 #: cs/linguacopier/browser/copier.pt:94
@@ -54,13 +89,26 @@ msgstr ""
 msgid "Direct copy size limit"
 msgstr ""
 
+#: cs/linguacopier/browser/controlpanel.py:114
+msgid "Done"
+msgstr ""
+
+#: cs/linguacopier/browser/jobs.pt:38
+msgid "Errors"
+msgstr ""
+
 #: cs/linguacopier/browser/copier.pt:39
 msgid "Export as CSV"
 msgstr ""
 
+#: cs/linguacopier/browser/controlpanel.py:115
 #: cs/linguacopier/browser/copier.pt:50
 #: cs/linguacopier/browser/copier.py:210
 msgid "Failed"
+msgstr ""
+
+#: cs/linguacopier/browser/jobs.pt:37
+msgid "Finished"
 msgstr ""
 
 #: cs/linguacopier/interfaces.py:65
@@ -81,6 +129,10 @@ msgstr ""
 
 #: cs/linguacopier/interfaces.py:43
 msgid "How many times a background job retries a transient failure."
+msgstr ""
+
+#: cs/linguacopier/browser/jobs.pt:29
+msgid "Id"
 msgstr ""
 
 #: cs/linguacopier/browser/copier.py:92
@@ -107,6 +159,18 @@ msgstr ""
 msgid "Installs the cs.linguacopier add-on."
 msgstr ""
 
+#: cs/linguacopier/browser/controlpanel.py:72
+msgid "Job cancelled."
+msgstr ""
+
+#: cs/linguacopier/browser/controlpanel.py:83
+msgid "Job deleted."
+msgstr ""
+
+#: cs/linguacopier/browser/controlpanel.py:78
+msgid "Job queued again."
+msgstr ""
+
 #: cs/linguacopier/interfaces.py:58
 msgid "Job retention (days)"
 msgstr ""
@@ -115,12 +179,24 @@ msgstr ""
 msgid "Language"
 msgstr ""
 
+#: cs/linguacopier/browser/jobs.pt:32
+msgid "Languages"
+msgstr ""
+
 #: cs/linguacopier/interfaces.py:42
 msgid "Maximum retries"
 msgstr ""
 
 #: cs/linguacopier/interfaces.py:64
 msgid "Maximum stored jobs"
+msgstr ""
+
+#: cs/linguacopier/browser/jobs.pt:16
+msgid "No background worker has run recently. Queued jobs will not progress until the worker is scheduled."
+msgstr ""
+
+#: cs/linguacopier/browser/controlpanel.py:70
+msgid "No such job."
 msgstr ""
 
 #: cs/linguacopier/browser/copier.pt:73
@@ -141,6 +217,26 @@ msgstr ""
 msgid "Partial"
 msgstr ""
 
+#: cs/linguacopier/browser/jobs.pt:33
+msgid "Progress"
+msgstr ""
+
+#: cs/linguacopier/browser/controlpanel.py:112
+msgid "Queued"
+msgstr ""
+
+#: cs/linguacopier/browser/jobs.pt:34
+msgid "Requested by"
+msgstr ""
+
+#: cs/linguacopier/browser/jobs.pt:88
+msgid "Retry"
+msgstr ""
+
+#: cs/linguacopier/browser/controlpanel.py:113
+msgid "Running"
+msgstr ""
+
 #: cs/linguacopier/browser/copier.py:101
 msgid "Select into which languages the translation will be made"
 msgstr ""
@@ -154,12 +250,33 @@ msgstr ""
 msgid "Some contents could not be copied"
 msgstr ""
 
+#: cs/linguacopier/browser/jobs.pt:36
+msgid "Started"
+msgstr ""
+
 #: cs/linguacopier/browser/copier.pt:90
+#: cs/linguacopier/browser/jobs.pt:30
 msgid "Status"
 msgstr ""
 
 #: cs/linguacopier/browser/copier.py:100
 msgid "Target languages"
+msgstr ""
+
+#: cs/linguacopier/browser/jobs.pt:23
+msgid "The background worker is running."
+msgstr ""
+
+#: cs/linguacopier/browser/controlpanel.py:85
+msgid "The job cannot be deleted."
+msgstr ""
+
+#: cs/linguacopier/browser/controlpanel.py:80
+msgid "The job cannot be retried."
+msgstr ""
+
+#: cs/linguacopier/browser/jobs.pt:108
+msgid "There are no copy jobs."
 msgstr ""
 
 #: cs/linguacopier/browser/copier.pt:142

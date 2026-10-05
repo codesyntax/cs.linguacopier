@@ -26,3 +26,9 @@ def uninstall(context):
     annotations = IAnnotations(api.portal.get())
     if JOB_STORE_KEY in annotations:
         del annotations[JOB_STORE_KEY]
+
+
+def upgrade_to_1001(context):
+    """Register the control-panel configlets and the settings records."""
+    context.runImportStepFromProfile("cs.linguacopier:default", "controlpanel")
+    context.runImportStepFromProfile("cs.linguacopier:default", "plone.app.registry")

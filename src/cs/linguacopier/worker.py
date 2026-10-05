@@ -98,7 +98,7 @@ def _run_job(portal, job, settings):
             log.info("Copy job %s cancelled at %s/%s", job.id, index, len(units))
             return
         chunk = units[index : index + chunk_size]
-        job = _run_chunk(job, copier, chunk, index + len(chunk), max_retries)
+        job = _run_chunk(portal, job, copier, chunk, index + len(chunk), max_retries)
         if job is None:
             return
         index = job.cursor
@@ -109,11 +109,12 @@ def _run_job(portal, job, settings):
     log.info("Copy job %s finished: %s", job.id, job.status)
 
 
-def _run_chunk(job, copier, chunk, new_cursor, max_retries):
+def _run_chunk(portal, job, copier, chunk, new_cursor, max_retries):
     """Copy one chunk and commit it, retrying transient failures.
 
-    Returns the (possibly reloaded) job on success, or ``None`` when the retries
-    are exhausted and the job has been marked failed.
+    Refreshes the worker heartbeat with each committed chunk, so a long job does
+    not look like a dead worker. Returns the (possibly reloaded) job on success,
+    or ``None`` when the job is gone or the retries are exhausted.
     """
     job_id = job.id
     attempts = 0
@@ -122,11 +123,15 @@ def _run_chunk(job, copier, chunk, new_cursor, max_retries):
             for item, language in chunk:
                 _record_result(job, copier.copy_item(item, language))
             job.cursor = new_cursor
+            get_job_store(portal).worker_heartbeat = now()
             transaction.commit()
         except Exception as e:
             transaction.abort()
             attempts += 1
             job = getUtility(ICopyJobQueue).get(job_id)
+            if job is None:
+                log.warning("Copy job %s disappeared; stopping", job_id)
+                return None
             if attempts > max_retries:
                 _mark_failed(job, e)
                 return None

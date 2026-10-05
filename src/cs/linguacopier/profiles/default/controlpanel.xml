@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<object xmlns:i18n="http://xml.zope.org/namespaces/i18n"
+        name="portal_controlpanel"
+        purge="False"
+        i18n:domain="cs.linguacopier"
+>
+  <configlet action_id="linguacopier-settings"
+             appId="cs.linguacopier"
+             category="plone-content"
+             condition_expr=""
+             icon_expr="string:translate"
+             title="Content copier"
+             url_expr="string:${portal_url}/@@linguacopier-settings"
+             visible="True"
+             i18n:attributes="title"
+  >
+    <permission>cmf.ManagePortal</permission>
+  </configlet>
+  <configlet action_id="linguacopier-jobs"
+             appId="cs.linguacopier"
+             category="plone-content"
+             condition_expr=""
+             icon_expr="string:list-task"
+             title="Copy jobs"
+             url_expr="string:${portal_url}/@@linguacopier-jobs"
+             visible="True"
+             i18n:attributes="title"
+  >
+    <permission>cmf.ManagePortal</permission>
+  </configlet>
+</object>
