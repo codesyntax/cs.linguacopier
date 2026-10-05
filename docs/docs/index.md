@@ -13,7 +13,7 @@ Welcome to the documentation for **cs.linguacopier**!
 
 `cs.linguacopier` adds an action to copy the contents of an object — and, optionally, its subobjects — into one or more {term}`target language`s, so that translators start from a copy of the original instead of an empty page.
 
-It does **not** translate the content: it copies it.
+By default it copies the content verbatim. If an {term}`external translation service` is configured in Plone, the copy can also **translate** the copied text as it goes, so translators start from a draft in the target language.
 
 It is available in the {term}`classic UI` and, when `plone.restapi` is installed, over the {term}`REST API` for a Volto front end.
 

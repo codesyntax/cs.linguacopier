@@ -19,6 +19,18 @@ This products provides an action with several options, which allows the content 
 
 Disclaimer: [check the documentation](https://codesyntax.github.io/cs.linguacopier/) to learn how this product can help you on effectively translating the content.
 
+## Translation
+
+If a translation service is configured in Plone — for example Google Translate or DeepL — a copy can optionally **translate** the copied text as it goes.
+
+- Tick **Translate the copied content?** in the classic UI form, or send `"translate": true` over REST.
+- Page titles, descriptions, and rich text are translated with the configured service, preserving rich-text markup.
+- Fields marked language-independent (for example a shared relation) are left to `plone.app.multilingual`; this add-on does not copy or translate them.
+- When nothing can translate a value, the original is kept and the copy is not aborted.
+- The copy report shows, per object, whether it was translated, partially translated, or left as-is.
+
+Translation is optional. Without a configured service — or without the (unreleased) `plone.app.multilingual` external-translation API — the copy behaves exactly like a plain copy.
+
 ## Installation
 
 Install cs.linguacopier by adding `cs.linguacopier` it to your project's dependencies (either buildout, pyproject.toml, requirements.txt, uv or whatever you use to manage your Plone project's dependencies).
@@ -37,11 +49,12 @@ with a JSON body such as:
 {
   "target_languages": ["es", "ca"],
   "include_context": true,
-  "include_children": true
+  "include_children": true,
+  "translate": true
 }
 ```
 
-The endpoint requires the **Manage portal** permission and always answers `200` with a per-object result. See the [documentation](https://codesyntax.github.io/cs.linguacopier/) for the full request and response contract.
+The endpoint requires the **Manage portal** permission and always answers `200` with a per-object result, including the translation outcome of each copied object. See the [documentation](https://codesyntax.github.io/cs.linguacopier/) for the full request and response contract.
 
 ## Contribute
 

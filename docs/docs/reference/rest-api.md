@@ -30,13 +30,15 @@ Copy the addressed object and/or its subobjects into the requested target langua
 {
   "target_languages": ["es", "ca"],
   "include_context": false,
-  "include_children": false
+  "include_children": false,
+  "translate": false
 }
 ```
 
 - `target_languages` (`list` of language codes, required): the languages to copy into. Must be non-empty, each a supported content language, and none may be the addressed content's own language.
 - `include_context` (`boolean`, default `false`): also copy the addressed object.
 - `include_children` (`boolean`, default `false`): also copy its subobjects.
+- `translate` (`boolean`, default `false`): translate the copied text fields with the configured {term}`external translation service` instead of copying them verbatim. The original is kept when nothing can translate it.
 
 At least one of `include_context` or `include_children` must be `true`.
 
@@ -49,7 +51,12 @@ Every handled request returns `200`.
   "@id": "http://localhost:8080/Plone/ca/folder",
   "target_languages": ["es"],
   "copied": [
-    {"@id": "http://localhost:8080/Plone/es/folder", "language": "es", "status": "created"}
+    {
+      "@id": "http://localhost:8080/Plone/es/folder",
+      "language": "es",
+      "status": "created",
+      "translation": "translated"
+    }
   ],
   "errors": []
 }
@@ -57,7 +64,7 @@ Every handled request returns `200`.
 
 - `@id` (`string`): the addressed object's URL.
 - `target_languages` (`list`): echoed back from the request.
-- `copied` (`list`): one entry per object copied or intentionally skipped, with `@id` (target), `language`, and `status` (`created`, `updated`, or `skipped`).
+- `copied` (`list`): one entry per object copied or intentionally skipped, with `@id` (target), `language`, and `status` (`created`, `updated`, or `skipped`). When translation was requested, the entry also carries `translation`, the {term}`translation outcome` (`translated`, `partial`, or `not_translated`).
 - `errors` (`list`): one entry per object that could not be copied, or per validation failure. An item error carries `@id` (source), `language`, and `message`. A validation error carries `@id` (the addressed context) and `message`, and no `language`.
 
 Malformed JSON is rejected by `plone.restapi` before the service runs.

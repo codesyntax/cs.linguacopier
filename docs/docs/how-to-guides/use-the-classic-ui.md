@@ -29,6 +29,10 @@ Add `cs.linguacopier` to your project's dependencies, then install the **cs.ling
 
     At least one of the two must be selected.
 
+1.  Optionally tick {guilabel}`Translate the copied content?` to translate the text fields with the {term}`external translation service` configured in the site, instead of copying them verbatim.
+
+    The original value is kept when nothing can translate it.
+
 1.  Choose {guilabel}`Copy content`.
 
 ```{note}
@@ -41,6 +45,8 @@ After the copy, the form shows a report of the outcome.
 
 - A summary counts the items by status: *created*, *updated*, *skipped*, and *failed*.
 - A table lists one row per object and language, with its status and, for failures, the reason.
+
+When translation was requested, the table also shows a **Translation** column with *Translated*, *Partial*, or *Not translated*, and the summary counts each {term}`translation outcome`. This is a note, not a failure: a copy that kept some or all original values still succeeds.
 
 Items are *skipped* when their content type is configured not to be copied, for example a language-independent `LIF` folder. Skipping is not an error.
 

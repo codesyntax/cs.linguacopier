@@ -37,6 +37,10 @@ In this tutorial you will copy a section of a Plone site into a second language,
 
 1.  Leave {guilabel}`Include context element?` and {guilabel}`Include the contents?` checked to copy the folder and every page inside it.
 
+1.  Optionally tick {guilabel}`Translate the copied content?` to translate the text with the {term}`external translation service` configured in the site, so the copy is a draft in the target language instead of the original wording.
+
+    The original value is kept when nothing can translate it.
+
 1.  Choose {guilabel}`Copy content`.
 
 ## Read the {term}`copy report`
@@ -45,6 +49,7 @@ The form re-renders with a report of what happened.
 
 - A summary line counts the copied items by status: *created*, *updated*, *skipped*, and *failed*.
 - A table lists one row per object and language, with its status and, for failures, the reason.
+- When translation was requested, the table also shows the {term}`translation outcome` of each object (*Translated*, *Partial*, or *Not translated*).
 
 You can download the table as a CSV file, which opens in a spreadsheet application such as Excel, with the {guilabel}`Export as CSV` button.
 

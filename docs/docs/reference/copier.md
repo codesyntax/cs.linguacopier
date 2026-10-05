@@ -20,8 +20,8 @@ from cs.linguacopier.copier import ContentCopier
 `ContentCopier(context)`
 : Create a copier for the given content object.
 
-`copy(target_languages, include_context=False, include_children=False)`
-: Copy the context and/or its descendants into `target_languages`, and return a `CopyReport`.
+`copy(target_languages, include_context=False, include_children=False, translate=False)`
+: Copy the context and/or its descendants into `target_languages`, and return a `CopyReport`. When `translate` is true, text field values are translated with the configured {term}`external translation service`, keeping the original when nothing can translate it.
 
 The copy is {term}`best effort`: each object is isolated in a `transaction.savepoint`, so a failure on one object rolls back only that object and is recorded, while the rest are copied. The copier does not commit; the caller owns the transaction.
 
@@ -44,6 +44,9 @@ The copy is {term}`best effort`: each object is isolated in a `transaction.savep
 `status`
 : One of `created`, `updated`, or `skipped`, available as the constants `cs.linguacopier.copier.CREATED`, `UPDATED`, and `SKIPPED`.
 
+`translation`
+: The {term}`translation outcome` of the object — `translated`, `partial`, or `not_translated` — available as the constants `cs.linguacopier.copier.TRANSLATED`, `PARTIAL`, and `NOT_TRANSLATED`. It is `None` when translation was not requested.
+
 ### `CopyError`
 
 `source`
@@ -54,6 +57,14 @@ The copy is {term}`best effort`: each object is isolated in a `transaction.savep
 
 `message`
 : The reason for the failure.
+
+## Translation
+
+`copy(..., translate=True)` translates the copied text field values with the external translation service registered in `plone.app.multilingual`, keeping the original when nothing can translate it.
+
+- Only text-bearing values are translated: scalar strings (such as the title and description) and RichText (its raw HTML is translated and rewrapped, preserving markup). String lists, non-text values, and empty values are copied verbatim.
+- Fields marked language-independent (`plone.app.multilingual.dx.interfaces.ILanguageIndependentField`) are left to `plone.app.multilingual` and are not copied or translated by the copier; this keeps shared data (for example a relation) consistent across translations.
+- The translation call is isolated in `cs.linguacopier.translation`, which imports the (unreleased) `plone.app.multilingual` external-translation API defensively. Without that API, or with no service configured, translation is a no-op and the copy is verbatim.
 
 ## `cs.linguacopier.languages`
 

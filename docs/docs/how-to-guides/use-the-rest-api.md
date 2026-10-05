@@ -31,7 +31,8 @@ Content-Type: application/json
 {
   "target_languages": ["es"],
   "include_context": true,
-  "include_children": true
+  "include_children": true,
+  "translate": true
 }
 ```
 
@@ -45,6 +46,9 @@ The request body has the following fields.
 
 `include_children`
 : Optional boolean, default `false`. Also copy its subobjects.
+
+`translate`
+: Optional boolean, default `false`. Translate the copied text fields with the {term}`external translation service` configured in the site, instead of copying them verbatim. The original is kept when nothing can translate it.
 
 At least one of `include_context` or `include_children` must be `true`.
 
@@ -60,12 +64,14 @@ A handled request always answers `200` with a per-object result.
     {
       "@id": "http://localhost:8080/Plone/es/folder",
       "language": "es",
-      "status": "created"
+      "status": "created",
+      "translation": "translated"
     },
     {
       "@id": "http://localhost:8080/Plone/es/folder/child",
       "language": "es",
-      "status": "created"
+      "status": "created",
+      "translation": "translated"
     }
   ],
   "errors": []
@@ -73,7 +79,7 @@ A handled request always answers `200` with a per-object result.
 ```
 
 `copied`
-: One entry per object copied or intentionally skipped. `status` is `created`, `updated`, or `skipped`.
+: One entry per object copied or intentionally skipped. `status` is `created`, `updated`, or `skipped`. When translation was requested, each entry also carries a `translation` field with the {term}`translation outcome` (`translated`, `partial`, or `not_translated`).
 
 `errors`
 : One entry per object that could not be copied, or per validation failure. An item error carries the original item's `@id`, the target `language`, and a `message`. A validation error carries the addressed object's `@id` and a `message` (and no `language`).
