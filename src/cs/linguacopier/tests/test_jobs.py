@@ -1,5 +1,7 @@
 """Tests for the persistent background copy job queue."""
 
+from BTrees.IOBTree import IOBTree
+from BTrees.OOBTree import OOBTree
 from cs.linguacopier.interfaces import ICopyJobQueue
 from cs.linguacopier.jobs import CANCELLED
 from cs.linguacopier.jobs import DONE
@@ -96,6 +98,40 @@ class TestCopyJobQueue(unittest.TestCase):
         store = get_job_store(self.portal)
 
         self.assertIn(job.id, store.jobs)
+
+    def test_collections_are_btrees(self):
+        job = self.queue.add(self._params())
+        store = get_job_store(self.portal)
+
+        self.assertIsInstance(store.jobs, OOBTree)
+        self.assertIsInstance(store.order, IOBTree)
+        self.assertIsInstance(job.params, OOBTree)
+        self.assertIsInstance(job.progress, OOBTree)
+        self.assertIsInstance(job.translation, OOBTree)
+        self.assertIsInstance(job.errors, IOBTree)
+
+    def test_errors_are_bounded(self):
+        job = self.queue.add(self._params())
+
+        for index in range(60):
+            job.add_error("source", "es", f"error {index}")
+
+        self.assertEqual(len(job.errors), 50)
+        # the oldest are dropped, the newest kept
+        self.assertEqual(job.recent_errors()[-1]["message"], "error 59")
+
+    def test_order_is_kept_across_deletes(self):
+        first = self.queue.add(self._params())
+        second = self.queue.add(self._params())
+        third = self.queue.add(self._params())
+        second.status = DONE
+
+        self.queue.delete(second.id)
+
+        store = get_job_store(self.portal)
+        self.assertNotIn(second.id, list(store.order.values()))
+        self.assertEqual([job.id for job in self.queue.all()], [third.id, first.id])
+        self.assertEqual([job.id for job in self.queue.pending()], [first.id, third.id])
 
     def test_to_dict(self):
         job = self.queue.add(self._params(), requested_by="bob")

@@ -122,7 +122,7 @@ class TestWorker(unittest.TestCase):
         self.assertEqual(job.status, DONE)
         self.assertEqual(job.progress["failed"], 1)
         self.assertEqual(len(job.errors), 1)
-        self.assertIn("boom", job.errors[0]["message"])
+        self.assertIn("boom", job.recent_errors()[0]["message"])
         # the good item still went through
         self.assertTrue(ITranslationManager(folder["good"]).has_translation("es"))
 

@@ -5,14 +5,14 @@ queue or broker. A request enqueues a job through :class:`CopyJobQueue`; a
 separate worker (see :mod:`cs.linguacopier.worker`) claims and executes it.
 """
 
+from BTrees.IOBTree import IOBTree
+from BTrees.OOBTree import OOBTree
 from cs.linguacopier.interfaces import ICopyJob
 from cs.linguacopier.interfaces import ICopyJobQueue
 from datetime import datetime
 from datetime import timedelta
 from datetime import timezone
 from persistent import Persistent
-from persistent.list import PersistentList
-from persistent.mapping import PersistentMapping
 from plone import api
 from zope.annotation.interfaces import IAnnotations
 from zope.component import getUtility
@@ -29,7 +29,7 @@ DONE = "done"
 FAILED = "failed"
 CANCELLED = "cancelled"
 
-#: Upper bound on the per-job error list, so a big job cannot bloat the ZODB.
+#: Upper bound on the errors recorded per job, so a big job cannot bloat the ZODB.
 MAX_ERRORS = 50
 
 #: Used to order finished jobs that (anomalously) have no finish timestamp.
@@ -46,11 +46,18 @@ def _iso(value):
 
 @implementer(ICopyJob)
 class CopyJob(Persistent):
-    """A persistent background copy job."""
+    """A persistent background copy job.
+
+    Its collections are BTrees rather than the monolithic persistent mapping and
+    list types: a mutation rewrites only the affected BTree buckets, so a job
+    does not re-serialise a whole structure into the Data.fs on every change.
+    """
 
     def __init__(self, params, requested_by=""):
         self.id = uuid.uuid4().hex
-        self.params = PersistentMapping(params)
+        #: Position in the store's order tree; set when the job is queued.
+        self.sequence = None
+        self.params = OOBTree(params)
         self.requested_by = requested_by
         self.created = now()
         self.reset()
@@ -63,9 +70,9 @@ class CopyJob(Persistent):
         #: Number of completed work units, kept for resuming a restarted worker.
         self.cursor = None
         self.cancel_requested = False
-        self.errors = PersistentList()
+        self.errors = IOBTree()
         self.last_error = None
-        self.progress = PersistentMapping(
+        self.progress = OOBTree(
             {
                 "total": 0,
                 "processed": 0,
@@ -75,15 +82,18 @@ class CopyJob(Persistent):
                 "failed": 0,
             }
         )
-        self.translation = PersistentMapping(
-            {"translated": 0, "partial": 0, "not_translated": 0}
-        )
+        self.translation = OOBTree({"translated": 0, "partial": 0, "not_translated": 0})
 
     def add_error(self, source, language, message):
-        self.errors.append({"source": source, "language": language, "message": message})
+        key = self.errors.maxKey() + 1 if self.errors else 0
+        self.errors[key] = {"source": source, "language": language, "message": message}
         while len(self.errors) > MAX_ERRORS:
-            self.errors.pop(0)
+            del self.errors[self.errors.minKey()]
         self.last_error = message
+
+    def recent_errors(self):
+        """The recorded errors, oldest first."""
+        return [dict(error) for error in self.errors.values()]
 
     def to_dict(self):
         return {
@@ -97,17 +107,45 @@ class CopyJob(Persistent):
             "progress": dict(self.progress),
             "translation": dict(self.translation),
             "cancel_requested": self.cancel_requested,
-            "errors": [dict(error) for error in self.errors],
+            "errors": self.recent_errors(),
         }
 
 
 class _JobStore(Persistent):
-    """The persistent container of jobs plus the worker heartbeat."""
+    """The persistent container of jobs plus the worker heartbeat.
+
+    Both trees are BTrees, so adding, deleting or pruning a job rewrites a few
+    buckets rather than re-serialising the whole collection.
+    """
 
     def __init__(self):
-        self.jobs = PersistentMapping()
-        self.order = PersistentList()
+        #: job id -> CopyJob
+        self.jobs = OOBTree()
+        #: monotonically increasing sequence -> job id (keeps insertion order)
+        self.order = IOBTree()
+        self._next_sequence = 0
         self.worker_heartbeat = None
+
+    def add(self, job):
+        """Store ``job`` at the next sequence, so it stays in insertion order."""
+        job.sequence = self._next_sequence
+        self._next_sequence += 1
+        self.jobs[job.id] = job
+        self.order[job.sequence] = job.id
+
+    def remove(self, job_id):
+        """Remove a job and its order entry (the sequence/order stay in step)."""
+        job = self.jobs.get(job_id)
+        if job is None:
+            return
+        del self.jobs[job_id]
+        if job.sequence is not None and job.sequence in self.order:
+            del self.order[job.sequence]
+
+    def job_for(self, seq):
+        """Return the job stored at sequence ``seq``, or ``None``."""
+        job_id = self.order.get(seq)
+        return self.jobs.get(job_id) if job_id is not None else None
 
 
 def enqueue_copy(
@@ -148,8 +186,7 @@ class CopyJobQueue:
     def add(self, params, requested_by=""):
         store = get_job_store()
         job = CopyJob(params, requested_by=requested_by)
-        store.jobs[job.id] = job
-        store.order.append(job.id)
+        store.add(job)
         return job
 
     def get(self, job_id):
@@ -157,21 +194,25 @@ class CopyJobQueue:
 
     def all(self):
         store = get_job_store()
+        # The order tree iterates oldest-first; reverse it for newest-first.
+        job_ids = list(store.order.values())
+        job_ids.reverse()
         return [
-            store.jobs[job_id]
-            for job_id in reversed(store.order)
-            if job_id in store.jobs
+            job
+            for job in (store.jobs.get(job_id) for job_id in job_ids)
+            if job is not None
         ]
 
     def pending(self):
         # Queued jobs, plus any still marked running — with a single worker a
         # running job means the previous run was interrupted, so it resumes.
         store = get_job_store()
-        return [
-            store.jobs[job_id]
-            for job_id in store.order
-            if job_id in store.jobs and store.jobs[job_id].status in (QUEUED, RUNNING)
-        ]
+        result = []
+        for seq in store.order.keys():
+            job = store.job_for(seq)
+            if job is not None and job.status in (QUEUED, RUNNING):
+                result.append(job)
+        return result
 
     def cancel(self, job_id):
         job = self.get(job_id)
@@ -196,9 +237,7 @@ class CopyJobQueue:
         job = store.jobs.get(job_id)
         if job is None or job.status == RUNNING:
             return False
-        del store.jobs[job_id]
-        if job_id in store.order:
-            store.order.remove(job_id)
+        store.remove(job_id)
         return True
 
     def prune(self, retention_days=None, max_jobs=None):
@@ -211,8 +250,8 @@ class CopyJobQueue:
         reference = now()
         removable = []
         finished = []
-        for job_id in store.order:
-            job = store.jobs.get(job_id)
+        for seq in store.order.keys():
+            job = store.job_for(seq)
             if job is None or job.status in (QUEUED, RUNNING):
                 continue
             if (
@@ -220,16 +259,18 @@ class CopyJobQueue:
                 and job.finished is not None
                 and reference - job.finished > timedelta(days=retention_days)
             ):
-                removable.append(job_id)
+                removable.append(seq)
             else:
-                finished.append(job_id)
+                finished.append(seq)
         if max_jobs is not None and len(finished) > max_jobs:
             # Keep the most recently finished; drop the oldest.
-            finished.sort(key=lambda job_id: store.jobs[job_id].finished or _EPOCH)
+            finished.sort(key=lambda seq: store.job_for(seq).finished or _EPOCH)
             removable.extend(finished[: len(finished) - max_jobs])
-        for job_id in removable:
-            if job_id in store.jobs:
-                del store.jobs[job_id]
-            if job_id in store.order:
-                store.order.remove(job_id)
-        return removable
+        removed_ids = []
+        for seq in removable:
+            job_id = store.order.get(seq)
+            if job_id is None:
+                continue
+            store.remove(job_id)
+            removed_ids.append(job_id)
+        return removed_ids
