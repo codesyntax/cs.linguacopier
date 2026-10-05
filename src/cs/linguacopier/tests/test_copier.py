@@ -416,6 +416,28 @@ class TestCopier(unittest.TestCase):
 
         self.assertEqual(ContentCopier(doc).items_to_copy(), [])
 
+    def test_count_items(self):
+        folder = createContentInContainer(self.ca, "Folder", title="Folder")
+        createContentInContainer(folder, "Document", title="Child")
+        copier = ContentCopier(folder)
+
+        self.assertEqual(copier.count_items(), 0)
+        self.assertEqual(copier.count_items(include_context=True), 1)
+        self.assertEqual(copier.count_items(include_children=True), 1)
+        self.assertEqual(
+            copier.count_items(include_context=True, include_children=True), 2
+        )
+
+    def test_count_items_stops_once_over_the_limit(self):
+        folder = createContentInContainer(self.ca, "Folder", title="Folder")
+        for index in range(3):
+            createContentInContainer(folder, "Document", title=f"Child {index}")
+
+        count = ContentCopier(folder).count_items(include_children=True, limit=1)
+
+        # the limit was exceeded: only "more than the limit" is guaranteed
+        self.assertGreater(count, 1)
+
     def test_copy_item_creates_then_updates(self):
         doc = self._create_document(title="Hello")
         copier = ContentCopier(doc)

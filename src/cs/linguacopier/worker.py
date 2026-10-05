@@ -15,29 +15,20 @@ from AccessControl.SecurityManagement import newSecurityManager
 from AccessControl.SecurityManagement import setSecurityManager
 from cs.linguacopier.copier import ContentCopier
 from cs.linguacopier.interfaces import ICopyJobQueue
-from cs.linguacopier.interfaces import ILinguacopierSettings
 from cs.linguacopier.jobs import DONE
 from cs.linguacopier.jobs import FAILED
 from cs.linguacopier.jobs import get_job_store
 from cs.linguacopier.jobs import now
 from cs.linguacopier.jobs import RUNNING
+from cs.linguacopier.settings import get_settings
 from logging import getLogger
 from plone import api
-from plone.registry.interfaces import IRegistry
 from zope.component import getUtility
 from zope.component.hooks import setSite
 
 import transaction
 
 log = getLogger("cs.linguacopier.worker")
-
-
-def get_settings():
-    """Return the copier settings (tolerating records missing on old sites)."""
-    registry = getUtility(IRegistry)
-    return registry.forInterface(
-        ILinguacopierSettings, prefix="cs.linguacopier", check=False
-    )
 
 
 def process_pending_jobs(portal=None, max_jobs=None):

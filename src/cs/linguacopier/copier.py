@@ -117,6 +117,11 @@ class ContentCopier:
                     report.successes.append(result)
         return report
 
+    def child_brains(self):
+        """The catalog brains for the context and its descendants, in path order."""
+        pcat = api.portal.get_tool("portal_catalog")
+        return pcat(path="/".join(self.context.getPhysicalPath()))
+
     def items_to_copy(self, include_context=False, include_children=False):
         """Return the items a copy would touch, in processing order.
 
@@ -127,13 +132,37 @@ class ContentCopier:
         if include_context:
             items.append(self.context)
         if include_children:
-            pcat = api.portal.get_tool("portal_catalog")
-            brains = pcat(path="/".join(self.context.getPhysicalPath()))
-            descendants = [brain.getObject() for brain in brains]
-            descendants = [obj for obj in descendants if obj != self.context]
+            context_path = "/".join(self.context.getPhysicalPath())
+            descendants = [
+                brain.getObject()
+                for brain in self.child_brains()
+                if brain.getPath() != context_path
+            ]
             descendants.sort(key=sort_by_physical_path_length)
             items.extend(descendants)
         return items
+
+    def count_items(self, include_context=False, include_children=False, limit=None):
+        """Return how many items a copy would touch, without loading them.
+
+        When ``limit`` is given, counting stops as soon as it is exceeded (the
+        result then only means "more than the limit"), so a huge tree is not
+        fully walked just to size it.
+        """
+        count = 0
+        if include_context:
+            count += 1
+            if limit is not None and count > limit:
+                return count
+        if include_children:
+            context_path = "/".join(self.context.getPhysicalPath())
+            for brain in self.child_brains():
+                if brain.getPath() == context_path:
+                    continue
+                count += 1
+                if limit is not None and count > limit:
+                    return count
+        return count
 
     def copy_item(self, item, language):
         """Copy one item into one language; return a ``CopyResult`` or ``CopyError``.

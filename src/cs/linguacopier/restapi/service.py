@@ -7,9 +7,11 @@ form.
 
 from cs.linguacopier.copier import ContentCopier
 from cs.linguacopier.interfaces import ICopyJobQueue
-from cs.linguacopier.jobs import MODES
 from cs.linguacopier.languages import current_language
 from cs.linguacopier.languages import target_language_vocabulary
+from cs.linguacopier.planner import BACKGROUND
+from cs.linguacopier.planner import MODES
+from cs.linguacopier.planner import plan
 from plone import api
 from plone.protect.interfaces import IDisableCSRFProtection
 from plone.restapi.deserializer import json_body
@@ -27,14 +29,22 @@ class CopyContentToLanguage(Service):
         include_context = bool(data.get("include_context", False))
         include_children = bool(data.get("include_children", False))
         translate = bool(data.get("translate", False))
-        mode = data.get("mode", "auto")
+        raw_mode = data.get("mode")
 
         errors = self._validate(
-            target_languages, include_context, include_children, mode
+            target_languages, include_context, include_children, raw_mode
         )
         copied = []
         if not errors:
-            if mode == "background":
+            execution = plan(
+                self.context,
+                raw_mode,
+                target_languages,
+                include_context=include_context,
+                include_children=include_children,
+                translate=translate,
+            )
+            if execution == BACKGROUND:
                 job = self._enqueue(
                     target_languages, include_context, include_children, translate
                 )
@@ -96,7 +106,7 @@ class CopyContentToLanguage(Service):
                 }
             ]
 
-        if mode not in MODES:
+        if mode is not None and mode not in MODES:
             return [
                 {
                     "@id": self.context.absolute_url(),
