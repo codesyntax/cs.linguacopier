@@ -45,7 +45,11 @@ def process_pending_jobs(portal=None, max_jobs=None):
         portal = api.portal.get()
     setSite(portal)
     settings = get_settings()
+    # Prune and heartbeat are committed together, so a run's housekeeping
+    # sticks even when there is nothing to process.
+    _prune(settings)
     _write_heartbeat(portal)
+    transaction.commit()
 
     previous = getSecurityManager()
     try:
@@ -195,10 +199,16 @@ def _become_user(portal, user_id):
     newSecurityManager(None, user.__of__(acl_users))
 
 
+def _prune(settings):
+    """Drop finished jobs past the configured retention limits."""
+    getUtility(ICopyJobQueue).prune(
+        retention_days=settings.job_retention_days,
+        max_jobs=settings.max_jobs,
+    )
+
+
 def _write_heartbeat(portal):
-    store = get_job_store(portal)
-    store.worker_heartbeat = now()
-    transaction.commit()
+    get_job_store(portal).worker_heartbeat = now()
 
 
 def _url(obj):

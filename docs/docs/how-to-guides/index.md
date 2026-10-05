@@ -23,4 +23,5 @@ https://diataxis.fr/how-to-guides/
 
 use-the-classic-ui
 use-the-rest-api
+run-the-background-worker
 ```
