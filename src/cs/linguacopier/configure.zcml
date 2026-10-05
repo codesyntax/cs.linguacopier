@@ -40,4 +40,9 @@
       name="cs.linguacopier-hiddenprofiles"
       />
 
+  <utility
+      factory=".jobs.CopyJobQueue"
+      provides=".interfaces.ICopyJobQueue"
+      />
+
 </configure>
