@@ -1,4 +1,0 @@
-Document the optional translation of copied content: the translate option in the
-classic UI form and the REST API, the three-valued translation outcome in the copy
-report, the field selection and fallbacks, and the external translation service it
-relies on.

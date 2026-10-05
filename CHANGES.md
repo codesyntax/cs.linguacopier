@@ -9,6 +9,28 @@
 
 <!-- towncrier release notes start -->
 
+## 2.1 (2026-10-05)
+
+
+### New features
+
+- Add a ``translate`` option to the content copier: a checkbox in the
+  ``@@copy-content-to`` form and a ``translate`` boolean on the
+  ``@copy-content-to`` REST request. When set, the copied text field values are
+  translated with the external translation service configured in Plone, keeping
+  the original value when nothing can translate it. Fields marked as
+  language-independent are left to plone.app.multilingual, which shares and keeps
+  them in sync, so the copier does not copy them. The copy report shows which
+  items were translated in full, in part, or not at all. 
+
+
+### Documentation
+
+- Document the optional translation of copied content: the translate option in the
+  classic UI form and the REST API, the three-valued translation outcome in the copy
+  report, the field selection and fallbacks, and the external translation service it
+  relies on. 
+
 ## 2.0 (2026-10-02)
 
 
