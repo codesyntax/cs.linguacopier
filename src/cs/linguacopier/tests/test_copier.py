@@ -383,6 +383,76 @@ class TestCopier(unittest.TestCase):
         self.assertIn("cannot copy", report.errors[0].message)
         self.assertFalse(ITranslationManager(doc).has_translation("es"))
 
+    # items_to_copy / copy_item (the seams a background job drives)
+
+    def test_items_to_copy_context_only(self):
+        doc = self._create_document(title="Hello")
+
+        items = ContentCopier(doc).items_to_copy(include_context=True)
+
+        self.assertEqual(items, [doc])
+
+    def test_items_to_copy_children_only(self):
+        folder = createContentInContainer(self.ca, "Folder", title="Folder")
+        child = createContentInContainer(folder, "Document", title="Child")
+
+        items = ContentCopier(folder).items_to_copy(include_children=True)
+
+        self.assertEqual(items, [child])
+
+    def test_items_to_copy_context_and_children_in_order(self):
+        folder = createContentInContainer(self.ca, "Folder", title="Folder")
+        child = createContentInContainer(folder, "Folder", title="Child")
+        grandchild = createContentInContainer(child, "Document", title="Grandchild")
+
+        items = ContentCopier(folder).items_to_copy(
+            include_context=True, include_children=True
+        )
+
+        self.assertEqual(items, [folder, child, grandchild])
+
+    def test_items_to_copy_nothing_selected(self):
+        doc = self._create_document(title="Hello")
+
+        self.assertEqual(ContentCopier(doc).items_to_copy(), [])
+
+    def test_copy_item_creates_then_updates(self):
+        doc = self._create_document(title="Hello")
+        copier = ContentCopier(doc)
+
+        created = copier.copy_item(doc, "es")
+        self.assertEqual(created.status, "created")
+        self.assertEqual(created.language, "es")
+        self.assertEqual(created.target, ITranslationManager(doc).get_translation("es"))
+        self.assertTrue(ITranslationManager(doc).has_translation("es"))
+
+        updated = copier.copy_item(doc, "es")
+        self.assertEqual(updated.status, "updated")
+
+    def test_copy_item_reports_an_unsupported_type_as_skipped(self):
+        lif = self.portal.portal_catalog(portal_type="LIF")[0].getObject()
+
+        result = ContentCopier(lif).copy_item(lif, "es")
+
+        self.assertEqual(result.status, "skipped")
+        self.assertEqual(result.target, lif)
+        self.assertFalse(ITranslationManager(lif).has_translation("es"))
+
+    def test_copy_item_returns_an_error_and_rolls_back(self):
+        doc = self._create_document(title="Hello")
+
+        def explode(self, source, target, key, field=None):
+            raise ValueError(f"cannot copy {key}")
+
+        with mock.patch.object(ContentCopier, "change_content", explode):
+            result = ContentCopier(doc).copy_item(doc, "es")
+
+        self.assertIsInstance(result, CopyError)
+        self.assertEqual(result.source, doc)
+        self.assertEqual(result.language, "es")
+        self.assertIn("cannot copy", result.message)
+        self.assertFalse(ITranslationManager(doc).has_translation("es"))
+
     # copy_content_to (button handler)
 
     def test_copy_content_to_include_context(self):
@@ -639,6 +709,19 @@ class TestCopyTransaction(unittest.TestCase):
         self.assertEqual([r.status for r in report.successes], ["created"])
         self.assertTrue(ITranslationManager(doc).has_translation("es"))
 
+    def test_copy_item_does_not_commit(self):
+        portal = self.layer["portal"]
+        setRoles(portal, TEST_USER_ID, ["Manager"])
+        doc = createContentInContainer(portal["ca"], "Document", title="Hello")
+
+        result = ContentCopier(doc).copy_item(doc, "es")
+
+        # The caller owns the transaction boundaries: copy_item must not commit.
+        # IntegrationTesting replaces transaction.commit with a guard that
+        # raises; reaching here proves copy_item leaves the transaction open.
+        self.assertEqual(result.status, "created")
+        self.assertTrue(ITranslationManager(doc).has_translation("es"))
+
 
 @unittest.skipUnless(
     IExternalTranslationService, "external translation API not installed"
@@ -668,6 +751,18 @@ class TestTranslateOnCopy(unittest.TestCase):
 
         ContentCopier(doc).copy(["es"], include_context=True, translate=True)
 
+        translated = ITranslationManager(doc).get_translation("es")
+        self.assertEqual(translated.title, "[es] Hello")
+        self.assertEqual(translated.description, "[es] World")
+
+    def test_copy_item_translates_when_configured(self):
+        doc = self._document(title="Hello", description="World")
+        copier = ContentCopier(doc)
+        copier.translate = True
+
+        result = copier.copy_item(doc, "es")
+
+        self.assertEqual(result.translation, TRANSLATED)
         translated = ITranslationManager(doc).get_translation("es")
         self.assertEqual(translated.title, "[es] Hello")
         self.assertEqual(translated.description, "[es] World")
