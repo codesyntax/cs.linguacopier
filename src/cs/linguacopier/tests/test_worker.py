@@ -8,10 +8,12 @@ from cs.linguacopier.jobs import CANCELLED
 from cs.linguacopier.jobs import DONE
 from cs.linguacopier.jobs import FAILED
 from cs.linguacopier.jobs import get_job_store
+from cs.linguacopier.jobs import now
 from cs.linguacopier.jobs import RUNNING
 from cs.linguacopier.testing import CS_LINGUACOPIER_FUNCTIONAL_TESTING
 from cs.linguacopier.testing import FakeTranslationService
 from cs.linguacopier.worker import process_pending_jobs
+from datetime import timedelta
 from plone.app.multilingual.interfaces import ITranslationManager
 from plone.app.testing import setRoles
 from plone.app.testing import TEST_USER_ID
@@ -245,6 +247,29 @@ class TestWorker(unittest.TestCase):
         process_pending_jobs(self.portal)
 
         self.assertIsNotNone(store.worker_heartbeat)
+
+    def test_refreshes_the_heartbeat_on_each_run(self):
+        store = get_job_store(self.portal)
+        store.worker_heartbeat = now() - timedelta(hours=1)
+        transaction.commit()
+        previous = store.worker_heartbeat
+
+        process_pending_jobs(self.portal)
+
+        self.assertGreater(store.worker_heartbeat, previous)
+
+    def test_prunes_finished_jobs_past_retention(self):
+        self._set_setting("job_retention_days", 0)
+        job = self._enqueue(
+            createContentInContainer(self.ca, "Document", title="Hello")
+        )
+        job.status = DONE
+        job.finished = now() - timedelta(days=1)
+        transaction.commit()
+
+        process_pending_jobs(self.portal)
+
+        self.assertIsNone(self.queue.get(job.id))
 
     @unittest.skipUnless(
         IExternalTranslationService, "external translation API not installed"
