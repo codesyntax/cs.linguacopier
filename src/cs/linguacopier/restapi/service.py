@@ -6,11 +6,15 @@ form.
 """
 
 from cs.linguacopier.copier import ContentCopier
+from cs.linguacopier.interfaces import ICopyJobQueue
+from cs.linguacopier.jobs import MODES
 from cs.linguacopier.languages import current_language
 from cs.linguacopier.languages import target_language_vocabulary
+from plone import api
 from plone.protect.interfaces import IDisableCSRFProtection
 from plone.restapi.deserializer import json_body
 from plone.restapi.services import Service
+from zope.component import getUtility
 from zope.interface import alsoProvides
 
 
@@ -23,10 +27,22 @@ class CopyContentToLanguage(Service):
         include_context = bool(data.get("include_context", False))
         include_children = bool(data.get("include_children", False))
         translate = bool(data.get("translate", False))
+        mode = data.get("mode", "auto")
 
-        errors = self._validate(target_languages, include_context, include_children)
+        errors = self._validate(
+            target_languages, include_context, include_children, mode
+        )
         copied = []
         if not errors:
+            if mode == "background":
+                job = self._enqueue(
+                    target_languages, include_context, include_children, translate
+                )
+                self.request.response.setStatus(202)
+                return {
+                    "@id": self.context.absolute_url(),
+                    "job": job.to_dict(),
+                }
             report = ContentCopier(self.context).copy(
                 target_languages,
                 include_context=include_context,
@@ -59,13 +75,32 @@ class CopyContentToLanguage(Service):
             "errors": errors,
         }
 
-    def _validate(self, target_languages, include_context, include_children):
+    def _enqueue(self, target_languages, include_context, include_children, translate):
+        params = {
+            "context_path": list(self.context.getPhysicalPath()),
+            "target_languages": target_languages,
+            "include_context": include_context,
+            "include_children": include_children,
+            "translate": translate,
+        }
+        requested_by = api.user.get_current().getId()
+        return getUtility(ICopyJobQueue).add(params, requested_by=requested_by)
+
+    def _validate(self, target_languages, include_context, include_children, mode):
         """Return request-level validation errors (context URL, no language)."""
         if not target_languages:
             return [
                 {
                     "@id": self.context.absolute_url(),
                     "message": "target_languages must not be empty",
+                }
+            ]
+
+        if mode not in MODES:
+            return [
+                {
+                    "@id": self.context.absolute_url(),
+                    "message": f"Unsupported mode: {mode}",
                 }
             ]
 
