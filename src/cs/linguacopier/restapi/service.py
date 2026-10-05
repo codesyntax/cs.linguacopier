@@ -6,7 +6,7 @@ form.
 """
 
 from cs.linguacopier.copier import ContentCopier
-from cs.linguacopier.interfaces import ICopyJobQueue
+from cs.linguacopier.jobs import enqueue_copy
 from cs.linguacopier.languages import current_language
 from cs.linguacopier.languages import target_language_vocabulary
 from cs.linguacopier.planner import BACKGROUND
@@ -16,7 +16,6 @@ from plone import api
 from plone.protect.interfaces import IDisableCSRFProtection
 from plone.restapi.deserializer import json_body
 from plone.restapi.services import Service
-from zope.component import getUtility
 from zope.interface import alsoProvides
 
 
@@ -86,15 +85,14 @@ class CopyContentToLanguage(Service):
         }
 
     def _enqueue(self, target_languages, include_context, include_children, translate):
-        params = {
-            "context_path": list(self.context.getPhysicalPath()),
-            "target_languages": target_languages,
-            "include_context": include_context,
-            "include_children": include_children,
-            "translate": translate,
-        }
-        requested_by = api.user.get_current().getId()
-        return getUtility(ICopyJobQueue).add(params, requested_by=requested_by)
+        return enqueue_copy(
+            self.context,
+            target_languages,
+            include_context=include_context,
+            include_children=include_children,
+            translate=translate,
+            requested_by=api.user.get_current().getId(),
+        )
 
     def _validate(self, target_languages, include_context, include_children, mode):
         """Return request-level validation errors (context URL, no language)."""

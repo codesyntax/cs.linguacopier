@@ -14,6 +14,7 @@ from persistent.list import PersistentList
 from persistent.mapping import PersistentMapping
 from plone import api
 from zope.annotation.interfaces import IAnnotations
+from zope.component import getUtility
 from zope.interface import implementer
 
 import uuid
@@ -103,6 +104,25 @@ class _JobStore(Persistent):
         self.jobs = PersistentMapping()
         self.order = PersistentList()
         self.worker_heartbeat = None
+
+
+def enqueue_copy(
+    context,
+    target_languages,
+    include_context=False,
+    include_children=False,
+    translate=False,
+    requested_by="",
+):
+    """Create and queue a background copy job for ``context``."""
+    params = {
+        "context_path": list(context.getPhysicalPath()),
+        "target_languages": list(target_languages),
+        "include_context": include_context,
+        "include_children": include_children,
+        "translate": translate,
+    }
+    return getUtility(ICopyJobQueue).add(params, requested_by=requested_by)
 
 
 def get_job_store(portal=None):

@@ -4,7 +4,7 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
-"POT-Creation-Date: 2026-10-05 08:19+0000\n"
+"POT-Creation-Date: 2026-10-05 08:25+0000\n"
 "PO-Revision-Date: 2026-10-02 11:28+0200\n"
 "Last-Translator: Mikel Larreategi <mlarreategi@codesyntax.com>\n"
 "Language-Team: Basque <translation-team-eu@googlegroups.com>\n"
@@ -18,15 +18,19 @@ msgstr ""
 "Domain: cs.linguacopier\n"
 "Language: eu\n"
 
-#: cs/linguacopier/browser/jobs.pt:39
+#: cs/linguacopier/browser/jobs.pt:41
 msgid "Actions"
+msgstr ""
+
+#: cs/linguacopier/browser/vocabularies.py:16
+msgid "Automatic"
 msgstr ""
 
 #: cs/linguacopier/interfaces.py:36
 msgid "Background chunk size"
 msgstr ""
 
-#: cs/linguacopier/browser/jobs.pt:81
+#: cs/linguacopier/browser/jobs.pt:83
 msgid "Cancel"
 msgstr ""
 
@@ -43,34 +47,42 @@ msgstr ""
 msgid "Content copier"
 msgstr ""
 
-#: cs/linguacopier/browser/copier.py:170
+#: cs/linguacopier/browser/copier.py:219
 msgid "Contents copied successfully"
 msgstr "Edukiak ondo kopiatu dira"
 
-#: cs/linguacopier/browser/jobs.pt:31
+#: cs/linguacopier/browser/jobs.pt:33
 msgid "Context"
 msgstr ""
 
-#: cs/linguacopier/browser/copier.py:144
+#: cs/linguacopier/browser/copier.py:164
 msgid "Copy content"
 msgstr "Kopiatu edukia"
+
+#: cs/linguacopier/browser/copier.py:199
+msgid "Copy job started in the background."
+msgstr ""
 
 #: cs/linguacopier/browser/jobs.pt:10
 #: cs/linguacopier/profiles/default/controlpanel.xml
 msgid "Copy jobs"
 msgstr ""
 
+#: cs/linguacopier/browser/copier.py:124
+msgid "Copy mode"
+msgstr ""
+
 #: cs/linguacopier/browser/copier.pt:32
 msgid "Copy report"
 msgstr "Kopia-txostena"
 
-#: cs/linguacopier/browser/copier.py:125
+#: cs/linguacopier/browser/copier.py:139
 msgid "Copy the contents of this objects and its subobjects to the selected language/country"
 msgstr "Kopiatu objektu honen eta bere azpiobjektuen edukiak hautatutako hizkuntza/herrialdera"
 
 #: cs/linguacopier/browser/copier.pt:47
-#: cs/linguacopier/browser/copier.py:207
-#: cs/linguacopier/browser/jobs.pt:35
+#: cs/linguacopier/browser/copier.py:256
+#: cs/linguacopier/browser/jobs.pt:37
 msgid "Created"
 msgstr "Sortuta"
 
@@ -78,7 +90,7 @@ msgstr "Sortuta"
 msgid "Default copy mode"
 msgstr ""
 
-#: cs/linguacopier/browser/jobs.pt:95
+#: cs/linguacopier/browser/jobs.pt:97
 msgid "Delete"
 msgstr ""
 
@@ -90,11 +102,15 @@ msgstr "Xehetasuna"
 msgid "Direct copy size limit"
 msgstr ""
 
+#: cs/linguacopier/browser/vocabularies.py:17
+msgid "Directly"
+msgstr ""
+
 #: cs/linguacopier/browser/controlpanel.py:114
 msgid "Done"
 msgstr ""
 
-#: cs/linguacopier/browser/jobs.pt:38
+#: cs/linguacopier/browser/jobs.pt:40
 msgid "Errors"
 msgstr ""
 
@@ -104,11 +120,11 @@ msgstr "Esportatu CSV gisa"
 
 #: cs/linguacopier/browser/controlpanel.py:115
 #: cs/linguacopier/browser/copier.pt:50
-#: cs/linguacopier/browser/copier.py:210
+#: cs/linguacopier/browser/copier.py:259
 msgid "Failed"
 msgstr "Huts eginda"
 
-#: cs/linguacopier/browser/jobs.pt:37
+#: cs/linguacopier/browser/jobs.pt:39
 msgid "Finished"
 msgstr ""
 
@@ -132,15 +148,15 @@ msgstr ""
 msgid "How many times a background job retries a transient failure."
 msgstr ""
 
-#: cs/linguacopier/browser/jobs.pt:29
+#: cs/linguacopier/browser/jobs.pt:31
 msgid "Id"
 msgstr ""
 
-#: cs/linguacopier/browser/copier.py:92
+#: cs/linguacopier/browser/copier.py:96
 msgid "If selected, all the subobjects of this object will also be translated"
 msgstr "Hautatzen bada, objektu honen azpiobjektu guztiak ere itzuliko dira"
 
-#: cs/linguacopier/browser/copier.py:85
+#: cs/linguacopier/browser/copier.py:89
 msgid "If selected, the context element will be translated"
 msgstr "Hautatzen bada, testuinguru-elementua itzuliko da"
 
@@ -148,11 +164,15 @@ msgstr "Hautatzen bada, testuinguru-elementua itzuliko da"
 msgid "In automatic mode, run the copy directly when the estimated work (objects times target languages) is at or below this number."
 msgstr ""
 
-#: cs/linguacopier/browser/copier.py:84
+#: cs/linguacopier/browser/vocabularies.py:18
+msgid "In the background"
+msgstr ""
+
+#: cs/linguacopier/browser/copier.py:88
 msgid "Include context element?"
 msgstr "Testuinguru-elementua sartu?"
 
-#: cs/linguacopier/browser/copier.py:91
+#: cs/linguacopier/browser/copier.py:95
 msgid "Include the contents?"
 msgstr "Edukia sartu?"
 
@@ -180,7 +200,7 @@ msgstr ""
 msgid "Language"
 msgstr "Hizkuntza"
 
-#: cs/linguacopier/browser/jobs.pt:32
+#: cs/linguacopier/browser/jobs.pt:34
 msgid "Languages"
 msgstr ""
 
@@ -201,7 +221,7 @@ msgid "No such job."
 msgstr ""
 
 #: cs/linguacopier/browser/copier.pt:73
-#: cs/linguacopier/browser/copier.py:217
+#: cs/linguacopier/browser/copier.py:266
 msgid "Not translated"
 msgstr "Itzuli gabe"
 
@@ -214,11 +234,11 @@ msgid "Object"
 msgstr "Objektua"
 
 #: cs/linguacopier/browser/copier.pt:72
-#: cs/linguacopier/browser/copier.py:216
+#: cs/linguacopier/browser/copier.py:265
 msgid "Partial"
 msgstr "Partziala"
 
-#: cs/linguacopier/browser/jobs.pt:33
+#: cs/linguacopier/browser/jobs.pt:35
 msgid "Progress"
 msgstr ""
 
@@ -226,41 +246,45 @@ msgstr ""
 msgid "Queued"
 msgstr ""
 
-#: cs/linguacopier/browser/jobs.pt:34
+#: cs/linguacopier/browser/jobs.pt:36
 msgid "Requested by"
 msgstr ""
 
-#: cs/linguacopier/browser/jobs.pt:88
+#: cs/linguacopier/browser/jobs.pt:90
 msgid "Retry"
+msgstr ""
+
+#: cs/linguacopier/browser/copier.py:125
+msgid "Run the copy directly, in the background, or let the copier decide based on the amount of work."
 msgstr ""
 
 #: cs/linguacopier/browser/controlpanel.py:113
 msgid "Running"
 msgstr ""
 
-#: cs/linguacopier/browser/copier.py:101
+#: cs/linguacopier/browser/copier.py:105
 msgid "Select into which languages the translation will be made"
 msgstr "Hautatu zein hizkuntzatara egingo den itzulpena"
 
 #: cs/linguacopier/browser/copier.pt:49
-#: cs/linguacopier/browser/copier.py:209
+#: cs/linguacopier/browser/copier.py:258
 msgid "Skipped"
 msgstr "Saltatuta"
 
-#: cs/linguacopier/browser/copier.py:169
+#: cs/linguacopier/browser/copier.py:218
 msgid "Some contents could not be copied"
 msgstr "Eduki batzuk ezin izan dira kopiatu"
 
-#: cs/linguacopier/browser/jobs.pt:36
+#: cs/linguacopier/browser/jobs.pt:38
 msgid "Started"
 msgstr ""
 
 #: cs/linguacopier/browser/copier.pt:90
-#: cs/linguacopier/browser/jobs.pt:30
+#: cs/linguacopier/browser/jobs.pt:32
 msgid "Status"
 msgstr "Egoera"
 
-#: cs/linguacopier/browser/copier.py:100
+#: cs/linguacopier/browser/copier.py:104
 msgid "Target languages"
 msgstr "Helburuko hizkuntzak"
 
@@ -276,7 +300,7 @@ msgstr ""
 msgid "The job cannot be retried."
 msgstr ""
 
-#: cs/linguacopier/browser/jobs.pt:108
+#: cs/linguacopier/browser/jobs.pt:110
 msgid "There are no copy jobs."
 msgstr ""
 
@@ -284,20 +308,20 @@ msgstr ""
 msgid "There are no other languages to copy this content to."
 msgstr "Ez dago eduki hau kopiatzeko beste hizkuntzarik."
 
-#: cs/linguacopier/browser/copier.py:154
+#: cs/linguacopier/browser/copier.py:174
 msgid "This field is required"
 msgstr "Eremu hau derrigorrezkoa da"
 
-#: cs/linguacopier/browser/copier.py:110
+#: cs/linguacopier/browser/copier.py:114
 msgid "Translate the copied content?"
 msgstr "Kopiatutako edukia itzuli?"
 
-#: cs/linguacopier/browser/copier.py:111
+#: cs/linguacopier/browser/copier.py:115
 msgid "Translate the field values with the configured external translation service, when one is available."
 msgstr "Itzuli eremuen balioak konfiguratutako kanpoko itzulpen-zerbitzuarekin, erabilgarri dagoenean."
 
 #: cs/linguacopier/browser/copier.pt:71
-#: cs/linguacopier/browser/copier.py:215
+#: cs/linguacopier/browser/copier.py:264
 msgid "Translated"
 msgstr "Itzulita"
 
@@ -310,7 +334,7 @@ msgid "Uninstalls the cs.linguacopier add-on."
 msgstr "cs.linguacopier gehigarria desinstalatzen du."
 
 #: cs/linguacopier/browser/copier.pt:48
-#: cs/linguacopier/browser/copier.py:208
+#: cs/linguacopier/browser/copier.py:257
 msgid "Updated"
 msgstr "Eguneratuta"
 

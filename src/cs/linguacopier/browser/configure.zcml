@@ -41,4 +41,10 @@
       component=".vocabularies.AvailableTargetLanguagesFactory"
       />
 
+  <utility
+      provides="zope.schema.interfaces.IVocabularyFactory"
+      name="cs.linguacopier.CopyModes"
+      component=".vocabularies.CopyModesFactory"
+      />
+
 </configure>

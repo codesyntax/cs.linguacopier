@@ -13,6 +13,7 @@ from cs.linguacopier.copier import NOT_TRANSLATED
 from cs.linguacopier.copier import PARTIAL
 from cs.linguacopier.copier import sort_by_physical_path_length
 from cs.linguacopier.copier import TRANSLATED
+from cs.linguacopier.interfaces import ICopyJobQueue
 from cs.linguacopier.interfaces import ITranslateThings
 from cs.linguacopier.testing import CS_LINGUACOPIER_FUNCTIONAL_TESTING
 from cs.linguacopier.testing import CS_LINGUACOPIER_INTEGRATION_TESTING
@@ -32,6 +33,7 @@ from plone.app.testing import TEST_USER_ID
 from plone.app.textfield.value import RichTextValue
 from plone.dexterity.interfaces import IDexterityContent
 from plone.dexterity.utils import createContentInContainer
+from plone.registry.interfaces import IRegistry
 from Products.statusmessages.interfaces import IStatusMessage
 from unittest import mock
 from z3c.form.interfaces import WidgetActionExecutionError
@@ -43,6 +45,7 @@ from zope.interface import noLongerProvides
 from zope.intid.interfaces import IIntIds
 from zope.schema.interfaces import IVocabularyFactory
 
+import transaction
 import unittest
 
 
@@ -68,6 +71,7 @@ class TestHelpers(unittest.TestCase):
         self.assertTrue(ICopyContentToLanguage["include_context"].default)
         self.assertTrue(ICopyContentToLanguage["include_children"].default)
         self.assertTrue(ICopyContentToLanguage["target_languages"].required)
+        self.assertEqual(ICopyContentToLanguage["mode"].default, "auto")
 
 
 class TestReportViewModel(unittest.TestCase):
@@ -549,6 +553,65 @@ class TestCopier(unittest.TestCase):
         self.assertIsNotNone(form.report)
         self.assertEqual(form.report_counts["created"], 1)
         self.assertEqual(form.report_rows[0]["status"], "created")
+
+    def test_form_preselects_the_configured_default_mode(self):
+        registry = getUtility(IRegistry)
+        registry["cs.linguacopier.default_mode"] = "background"
+        transaction.commit()
+        doc = self._create_document(title="Hello")
+
+        form = self._form_for(doc)
+        form.update()
+
+        self.assertEqual(form.widgets["mode"].value, "background")
+
+    def test_background_submission_enqueues_a_job_and_redirects(self):
+        doc = self._create_document(title="Hello")
+        form = self._form_for(doc)
+        form.update()
+        form.extractData = lambda: (
+            {
+                "target_languages": ["es"],
+                "include_context": True,
+                "include_children": False,
+                "translate": False,
+                "mode": "background",
+            },
+            [],
+        )
+
+        form.copy_content_to(form, None)
+
+        jobs = getUtility(ICopyJobQueue).all()
+        self.assertEqual(len(jobs), 1)
+        self.assertEqual(jobs[0].params["target_languages"], ["es"])
+        self.assertFalse(ITranslationManager(doc).has_translation("es"))
+        self.assertIn(
+            "@@linguacopier-jobs", self.request.response.getHeader("Location")
+        )
+        messages = IStatusMessage(self.request).show()
+        self.assertTrue(any("background" in str(m.message) for m in messages))
+
+    def test_direct_submission_copies_inline(self):
+        doc = self._create_document(title="Hello")
+        form = self._form_for(doc)
+        form.update()
+        form.extractData = lambda: (
+            {
+                "target_languages": ["es"],
+                "include_context": True,
+                "include_children": False,
+                "translate": False,
+                "mode": "direct",
+            },
+            [],
+        )
+
+        form.copy_content_to(form, None)
+
+        self.assertTrue(ITranslationManager(doc).has_translation("es"))
+        self.assertIsNotNone(form.report)
+        self.assertEqual(getUtility(ICopyJobQueue).all(), [])
 
     def test_copy_content_to_report_includes_failures(self):
         class ExplodingTranslator:
