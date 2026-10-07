@@ -5,6 +5,7 @@ the classic-UI form and the REST service, so it must not depend on z3c.form or
 the browser layer.
 """
 
+from Acquisition import aq_parent
 from cs.linguacopier import translation
 from cs.linguacopier.interfaces import ITranslateThings
 from dataclasses import dataclass
@@ -16,12 +17,15 @@ from plone.app.multilingual.interfaces import ITranslationManager
 from plone.app.textfield.value import RichTextValue
 from plone.dexterity.interfaces import IDexterityContent
 from plone.dexterity.utils import iterSchemata
+from plone.i18n.normalizer.interfaces import IURLNormalizer
 from plone.uuid.interfaces import IUUID
 from z3c.relationfield import RelationValue
 from z3c.relationfield.schema import RelationList
 from zope import schema
 from zope.component import getAdapters
 from zope.component import getUtility
+from zope.component import queryUtility
+from zope.container.interfaces import INameChooser
 from zope.intid.interfaces import IIntIds
 from zope.schema import getFieldsInOrder
 from zope.schema.interfaces import IChoice
@@ -62,6 +66,38 @@ def is_token_valued(field):
         return True
     value_type = getattr(field, "value_type", None)
     return value_type is not None and IChoice.providedBy(value_type)
+
+
+def derive_id_from_title(obj, language):
+    """Rename ``obj`` to an id derived from its title, in ``language``.
+
+    Plone's normalizing name chooser derives an id from a title, but from the
+    request's (or the generic) normalizer. Here the title is normalized with the
+    **target language's** normalizer, so the URL reads correctly in that language
+    whether or not there is a request (the background worker has none). Plone's
+    name chooser is then reused for uniqueness. Does nothing when the title is
+    empty or normalizes to nothing, so the object keeps its default id.
+    """
+    title = getattr(obj, "title", "") or ""
+    if not title:
+        return
+    # The target language's normalizer transliterates (e.g. "ä" -> "ae"); the
+    # generic normalizer then slugifies to a URL-safe id. This is done here, not
+    # left to the name chooser, which would use the *request's* normalizer (or
+    # the generic one) and so ignore the target language.
+    language_normalizer = queryUtility(IURLNormalizer, name=language)
+    if language_normalizer is not None:
+        title = language_normalizer.normalize(title)
+    normalized = getUtility(IURLNormalizer).normalize(title)
+    # Nothing to do when the title normalizes to nothing, or when the derived id
+    # is already the object's id. (The name chooser treats the object itself as a
+    # collision, so calling it with the current id would wrongly append "-1".)
+    if not normalized or normalized == obj.getId():
+        return
+    parent = aq_parent(obj)
+    new_id = INameChooser(parent).chooseName(normalized, obj)
+    if new_id != obj.getId():
+        parent.manage_renameObject(obj.getId(), new_id)
 
 
 @dataclass
@@ -164,6 +200,10 @@ class ContentCopier:
             self._eligible_fields = 0
             self._translated_fields = 0
             self.copy_fields(item, translated)
+            if created and self.translate:
+                # The translated title is now in place; give the copy an id in
+                # the target language. Only on creation, so re-copies keep it.
+                derive_id_from_title(translated, language)
             self.copy_other_properties(item, translated)
             self.copy_other_things(item, translated)
             translated.reindexObject()

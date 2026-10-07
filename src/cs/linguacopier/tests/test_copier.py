@@ -9,6 +9,7 @@ from cs.linguacopier.copier import ContentCopier
 from cs.linguacopier.copier import CopyError
 from cs.linguacopier.copier import CopyReport
 from cs.linguacopier.copier import CopyResult
+from cs.linguacopier.copier import derive_id_from_title
 from cs.linguacopier.copier import is_token_valued
 from cs.linguacopier.copier import NOT_TRANSLATED
 from cs.linguacopier.copier import PARTIAL
@@ -82,6 +83,36 @@ class TestTokenValuedPredicate(unittest.TestCase):
     def test_free_text_fields_are_not_token_valued(self):
         self.assertFalse(is_token_valued(IBasic["title"]))
         self.assertFalse(is_token_valued(IBasic["description"]))
+
+
+class TestDeriveIdFromTitle(unittest.TestCase):
+    """Id derivation uses the target language's URL normalizer."""
+
+    layer = CS_LINGUACOPIER_FUNCTIONAL_TESTING
+
+    def setUp(self):
+        self.portal = self.layer["portal"]
+        setRoles(self.portal, TEST_USER_ID, ["Manager"])
+
+    def _doc(self, title):
+        return createContentInContainer(self.portal["ca"], "Document", title=title)
+
+    def test_uses_the_target_language_normalizer(self):
+        # the German normalizer maps "Ä" to "ae"; the generic one does not
+        doc = self._doc("Ärger")
+
+        derive_id_from_title(doc, "de")
+
+        self.assertEqual(doc.getId(), "aerger")
+
+    def test_keeps_the_id_when_the_title_normalizes_to_nothing(self):
+        doc = self._doc("Hello")
+        original = doc.getId()
+        doc.title = "!!!"
+
+        derive_id_from_title(doc, "es")
+
+        self.assertEqual(doc.getId(), original)
 
 
 class TestReportViewModel(unittest.TestCase):
@@ -791,6 +822,58 @@ class TestTranslateOnCopy(unittest.TestCase):
         # ...while free text on the same object is still translated
         self.assertEqual(translated.title, "[es] Hello")
         self.assertNotIn("alpha", [call[0] for call in self.service.calls])
+
+    def test_translated_id_is_derived_from_the_translated_title(self):
+        doc = self._document(title="Hello")
+
+        ContentCopier(doc).copy(["es"], include_context=True, translate=True)
+
+        translated = ITranslationManager(doc).get_translation("es")
+        self.assertEqual(translated.title, "[es] Hello")
+        self.assertEqual(translated.getId(), "es-hello")
+
+    def test_translated_id_is_stable_on_a_recopy(self):
+        doc = self._document(title="Hello")
+        ContentCopier(doc).copy(["es"], include_context=True, translate=True)
+        first_id = ITranslationManager(doc).get_translation("es").getId()
+
+        ContentCopier(doc).copy(["es"], include_context=True, translate=True)
+
+        self.assertEqual(
+            ITranslationManager(doc).get_translation("es").getId(), first_id
+        )
+
+    def test_translated_id_keeps_the_default_when_title_is_empty(self):
+        doc = self._document(title="")
+
+        ContentCopier(doc).copy(["es"], include_context=True, translate=True)
+
+        translated = ITranslationManager(doc).get_translation("es")
+        self.assertEqual(translated.getId(), doc.getId())
+
+    def test_translated_ids_are_unique(self):
+        first = self._document(title="Hello")
+        second = self._document(title="Hello")
+
+        ContentCopier(first).copy(["es"], include_context=True, translate=True)
+        ContentCopier(second).copy(["es"], include_context=True, translate=True)
+
+        # the colliding second one is uniquified the Plone way, not the default
+        # chooser's "-<language>" form
+        self.assertEqual(
+            ITranslationManager(first).get_translation("es").getId(), "es-hello"
+        )
+        self.assertEqual(
+            ITranslationManager(second).get_translation("es").getId(), "es-hello-1"
+        )
+
+    def test_translated_id_is_in_the_report(self):
+        doc = self._document(title="Hello")
+
+        report = ContentCopier(doc).copy(["es"], include_context=True, translate=True)
+
+        self.assertEqual(report.successes[0].target.getId(), "es-hello")
+        self.assertTrue(report.successes[0].target.absolute_url().endswith("/es-hello"))
 
     def test_reports_fully_translated(self):
         doc = self._document(title="Hello", description="World")
