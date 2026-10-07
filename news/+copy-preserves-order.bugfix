@@ -1,0 +1,5 @@
+A copied subtree now keeps the source's sibling order. The copier enumerates each
+folder's direct children in their position order and, once the copy is done, sets
+each target folder's order to match its source, so a translated section reads in
+the same sequence as the original (including nested folders and existing
+translations).

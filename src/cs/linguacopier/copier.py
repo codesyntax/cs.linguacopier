@@ -17,8 +17,10 @@ from plone.app.multilingual.interfaces import ITranslationManager
 from plone.app.textfield.value import RichTextValue
 from plone.dexterity.interfaces import IDexterityContent
 from plone.dexterity.utils import iterSchemata
+from plone.folder.interfaces import IExplicitOrdering
 from plone.i18n.normalizer.interfaces import IURLNormalizer
 from plone.uuid.interfaces import IUUID
+from Products.CMFCore.interfaces import IFolderish
 from z3c.relationfield import RelationValue
 from z3c.relationfield.schema import RelationList
 from zope import schema
@@ -48,10 +50,6 @@ SKIPPED = "skipped"
 TRANSLATED = "translated"
 PARTIAL = "partial"
 NOT_TRANSLATED = "not_translated"
-
-
-def sort_by_physical_path_length(x):
-    return len(x.getPhysicalPath())
 
 
 def is_token_valued(field):
@@ -156,9 +154,18 @@ class ContentCopier:
         """
         self.translate = translate
         report = CopyReport()
-        for item in self._items_to_copy(include_context, include_children):
+        items = self._items_to_copy(include_context, include_children)
+        for item in items:
             for language in target_languages:
                 self._copy_one(item, language, report)
+        if include_children:
+            # Once the whole tree is copied, give the target folders the same
+            # child order as their source. The context is included even when it
+            # was not itself copied: copying only its contents still needs the
+            # contents ordered in the context's translation.
+            folders = [self.context] + items
+            for language in target_languages:
+                self._order_targets(folders, language)
         return report
 
     def _items_to_copy(self, include_context, include_children):
@@ -166,13 +173,66 @@ class ContentCopier:
         if include_context:
             items.append(self.context)
         if include_children:
-            pcat = api.portal.get_tool("portal_catalog")
-            brains = pcat(path="/".join(self.context.getPhysicalPath()))
-            descendants = [brain.getObject() for brain in brains]
-            descendants = [obj for obj in descendants if obj != self.context]
-            descendants.sort(key=sort_by_physical_path_length)
-            items.extend(descendants)
+            items.extend(self._descendants_in_order(self.context))
         return items
+
+    def _descendants_in_order(self, folder):
+        """The descendants of ``folder``, depth first in document order.
+
+        Each folder's direct children are read from the catalog ordered by their
+        position in the parent — ``depth`` inside the path query keeps the result
+        to the direct children. Recursing gives the whole subtree in the source's
+        sibling order, and keeps the catalog's filtering.
+        """
+        pcat = api.portal.get_tool("portal_catalog")
+        folder_path = "/".join(folder.getPhysicalPath())
+        brains = pcat(
+            {
+                "path": {"query": folder_path, "depth": 1},
+                "sort_on": "getObjPositionInParent",
+            }
+        )
+        ordered = []
+        for brain in brains:
+            child = brain.getObject()
+            ordered.append(child)
+            if IFolderish.providedBy(child):
+                ordered.extend(self._descendants_in_order(child))
+        return ordered
+
+    def _order_targets(self, folders, language):
+        """Set each target folder's order to match its source's, best effort."""
+        for item in folders:
+            if not IFolderish.providedBy(item):
+                continue
+            target = ITranslationManager(item).get_translation(language)
+            if target is None:
+                continue
+            savepoint = transaction.savepoint()
+            try:
+                ordered_ids = []
+                for child in item.objectValues():
+                    child_target = ITranslationManager(child).get_translation(language)
+                    if child_target is not None:
+                        ordered_ids.append(child_target.getId())
+                self._apply_order(target, ordered_ids)
+            except Exception:
+                savepoint.rollback()
+                log.exception(
+                    "Could not order the translation of %s",
+                    "/".join(item.getPhysicalPath()),
+                )
+
+    def _apply_order(self, folder, ordered_ids):
+        if not ordered_ids:
+            return
+        ordering = folder.getOrdering()
+        if not IExplicitOrdering.providedBy(ordering):
+            return
+        current_ids = set(folder.objectIds())
+        for index, obj_id in enumerate(ordered_ids):
+            if obj_id in current_ids:
+                ordering.moveObjectToPosition(obj_id, index)
 
     def _copy_one(self, item, language, report):
         if item.portal_type in SKIPPED_PORTAL_TYPES:
@@ -194,6 +254,7 @@ class ContentCopier:
                     "/".join(item.getPhysicalPath()),
                     language,
                 )
+
             translated = manager.get_translation(language)
             self._source_language = item.Language()
             self._target_language = language

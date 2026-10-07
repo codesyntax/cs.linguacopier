@@ -13,7 +13,6 @@ from cs.linguacopier.copier import derive_id_from_title
 from cs.linguacopier.copier import is_token_valued
 from cs.linguacopier.copier import NOT_TRANSLATED
 from cs.linguacopier.copier import PARTIAL
-from cs.linguacopier.copier import sort_by_physical_path_length
 from cs.linguacopier.copier import TRANSLATED
 from cs.linguacopier.interfaces import ITranslateThings
 from cs.linguacopier.testing import CS_LINGUACOPIER_FUNCTIONAL_TESTING
@@ -58,15 +57,6 @@ class DummyContent:
 
 
 class TestHelpers(unittest.TestCase):
-    def test_sort_by_physical_path_length(self):
-        a = DummyContent(("plone", "ca", "a"))
-        b = DummyContent(("plone", "ca", "a", "b", "c"))
-        c = DummyContent(("plone", "ca", "a", "b"))
-        self.assertEqual(sort_by_physical_path_length(a), 3)
-
-        result = sorted([b, c, a], key=sort_by_physical_path_length)
-        self.assertEqual(result, [a, c, b])
-
     def test_interface_defaults(self):
         self.assertTrue(ICopyContentToLanguage["include_context"].default)
         self.assertTrue(ICopyContentToLanguage["include_children"].default)
@@ -213,6 +203,78 @@ class TestCopier(unittest.TestCase):
         form.extractData = lambda: (data, errors or [])
         form.copy_content_to(form, None)
         return form
+
+    # sibling order
+
+    def test_copy_preserves_nested_sibling_order(self):
+        folder = createContentInContainer(self.ca, "Folder", title="Folder")
+        sub = createContentInContainer(folder, "Folder", title="Sub")
+        x = createContentInContainer(sub, "Document", title="X")
+        y = createContentInContainer(sub, "Document", title="Y")
+        # reorder the subfolder: Y before X
+        sub.getOrdering().moveObjectToPosition(y.getId(), 0)
+
+        ContentCopier(folder).copy(["es"], include_context=True, include_children=True)
+
+        target_sub = ITranslationManager(sub).get_translation("es")
+        target_x = ITranslationManager(x).get_translation("es")
+        target_y = ITranslationManager(y).get_translation("es")
+        self.assertEqual(
+            list(target_sub.objectIds()), [target_y.getId(), target_x.getId()]
+        )
+
+    def test_copy_reorders_an_existing_translation(self):
+        folder = createContentInContainer(self.ca, "Folder", title="Folder")
+        a = createContentInContainer(folder, "Document", title="A")
+        b = createContentInContainer(folder, "Document", title="B")
+        # source order is B, A
+        folder.getOrdering().moveObjectToPosition(b.getId(), 0)
+        # pre-create the translations in the opposite order (A, B)
+        ITranslationManager(folder).add_translation("es")
+        target_a = ITranslationManager(a).add_translation("es")
+        target_b = ITranslationManager(b).add_translation("es")
+
+        ContentCopier(folder).copy(["es"], include_context=True, include_children=True)
+
+        target = ITranslationManager(folder).get_translation("es")
+        self.assertEqual(list(target.objectIds()), [target_b.getId(), target_a.getId()])
+
+    def test_copy_creates_parents_before_their_children(self):
+        folder = createContentInContainer(self.ca, "Folder", title="Folder")
+        sub = createContentInContainer(folder, "Folder", title="Sub")
+        subsub = createContentInContainer(sub, "Folder", title="SubSub")
+
+        report = ContentCopier(folder).copy(
+            ["es"], include_context=True, include_children=True
+        )
+
+        # items are processed (and so created) depth first, parents first
+        self.assertEqual(
+            [(result.target.getId(), result.language) for result in report.successes],
+            [("folder", "es"), ("sub", "es"), ("subsub", "es")],
+        )
+
+        # and each translation is nested under its parent's translation
+        folder_es = ITranslationManager(folder).get_translation("es")
+        sub_es = ITranslationManager(sub).get_translation("es")
+        subsub_es = ITranslationManager(subsub).get_translation("es")
+        self.assertEqual(sub_es.aq_parent, folder_es)
+        self.assertEqual(subsub_es.aq_parent, sub_es)
+
+    def test_copy_orders_contents_when_context_is_not_copied(self):
+        folder = createContentInContainer(self.ca, "Folder", title="Folder")
+        a = createContentInContainer(folder, "Document", title="A")
+        b = createContentInContainer(folder, "Document", title="B")
+        # source order is B, A
+        folder.getOrdering().moveObjectToPosition(b.getId(), 0)
+        # pre-create the folder translation and the children's, in A, B order
+        target = ITranslationManager(folder).add_translation("es")
+        target_a = ITranslationManager(a).add_translation("es")
+        target_b = ITranslationManager(b).add_translation("es")
+
+        ContentCopier(folder).copy(["es"], include_context=False, include_children=True)
+
+        self.assertEqual(list(target.objectIds()), [target_b.getId(), target_a.getId()])
 
     # copy_contents_of / copy pipeline
 
