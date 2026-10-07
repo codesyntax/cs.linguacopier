@@ -24,6 +24,7 @@ from zope.component import getAdapters
 from zope.component import getUtility
 from zope.intid.interfaces import IIntIds
 from zope.schema import getFieldsInOrder
+from zope.schema.interfaces import IChoice
 
 import transaction
 
@@ -47,6 +48,20 @@ NOT_TRANSLATED = "not_translated"
 
 def sort_by_physical_path_length(x):
     return len(x.getPhysicalPath())
+
+
+def is_token_valued(field):
+    """Whether a schema field stores a controlled token, not free text.
+
+    A ``Choice`` field, or a collection whose ``value_type`` is a ``Choice``,
+    holds a vocabulary/taxonomy token; translating it would store an invalid
+    value that can break rendering. This is the same test ``plone.restapi`` uses
+    to recognise enumerable fields.
+    """
+    if IChoice.providedBy(field):
+        return True
+    value_type = getattr(field, "value_type", None)
+    return value_type is not None and IChoice.providedBy(value_type)
 
 
 @dataclass
@@ -249,9 +264,13 @@ class ContentCopier:
                     target_adapter,
                     name,
                     None if index else schema_field,
+                    # Vocabulary/taxonomy/choice fields hold tokens, not free
+                    # text; copy them verbatim so the copy never stores an
+                    # invalid value.
+                    translatable=not is_token_valued(schema_field),
                 )
 
-    def change_content(self, source, target, key, field=None):
+    def change_content(self, source, target, key, field=None, translatable=True):
         source_value = getattr(source, key)
         value = getattr(source_value, "raw", source_value)
         if isinstance(field, RelationList):
@@ -271,7 +290,7 @@ class ContentCopier:
                             to_id = intids.register(related_element_translation)
                         related_translations.append(RelationValue(to_id))
             value = related_translations
-        if self.translate and isinstance(value, str) and value:
+        if self.translate and translatable and isinstance(value, str) and value:
             # Scalars and rich text raw HTML are both plain strings here; the
             # original value is kept when the service returns nothing.
             self._eligible_fields += 1

@@ -5,8 +5,10 @@ from plone.app.testing import applyProfile
 from plone.app.testing import FunctionalTesting
 from plone.app.testing import IntegrationTesting
 from plone.app.testing import PloneSandboxLayer
+from plone.dexterity.interfaces import IDexterityFTI
 from plone.testing import zope
 from Products.CMFCore.utils import getToolByName
+from zope.component import getUtility
 from zope.configuration import xmlconfig
 from zope.interface import alsoProvides
 
@@ -35,6 +37,8 @@ class CsLinguacopierLayer(PloneSandboxLayer):
         alsoProvides(IRelatedItems["relatedItems"], ILanguageIndependentField)
 
         self.loadZCML(package=cs.linguacopier)
+        # A test-only behavior with controlled (token) fields.
+        self.loadZCML("configure.zcml", package=cs.linguacopier.tests)
 
     def setUpPloneSite(self, portal):
         # Define the languages before installing plone.app.multilingual so that
@@ -46,6 +50,13 @@ class CsLinguacopierLayer(PloneSandboxLayer):
 
         applyProfile(portal, "plone.app.multilingual:default")
         applyProfile(portal, "cs.linguacopier:default")
+
+        # Enable the test-only controlled-fields behavior on Document.
+        fti = getUtility(IDexterityFTI, name="Document")
+        if "cs.linguacopier.tests.categorized" not in fti.behaviors:
+            fti.behaviors = tuple(fti.behaviors) + (
+                "cs.linguacopier.tests.categorized",
+            )
 
 
 CS_LINGUACOPIER_FIXTURE = CsLinguacopierLayer()

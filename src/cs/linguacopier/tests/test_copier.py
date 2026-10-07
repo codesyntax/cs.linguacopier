@@ -9,6 +9,7 @@ from cs.linguacopier.copier import ContentCopier
 from cs.linguacopier.copier import CopyError
 from cs.linguacopier.copier import CopyReport
 from cs.linguacopier.copier import CopyResult
+from cs.linguacopier.copier import is_token_valued
 from cs.linguacopier.copier import NOT_TRANSLATED
 from cs.linguacopier.copier import PARTIAL
 from cs.linguacopier.copier import sort_by_physical_path_length
@@ -17,6 +18,7 @@ from cs.linguacopier.interfaces import ITranslateThings
 from cs.linguacopier.testing import CS_LINGUACOPIER_FUNCTIONAL_TESTING
 from cs.linguacopier.testing import CS_LINGUACOPIER_INTEGRATION_TESTING
 from cs.linguacopier.testing import FakeTranslationService
+from cs.linguacopier.tests.behaviors import ITestCategorized
 from plone.app.dexterity.behaviors.metadata import IBasic
 from plone.app.multilingual.dx.interfaces import ILanguageIndependentField
 from plone.app.multilingual.interfaces import ITranslationManager
@@ -68,6 +70,18 @@ class TestHelpers(unittest.TestCase):
         self.assertTrue(ICopyContentToLanguage["include_context"].default)
         self.assertTrue(ICopyContentToLanguage["include_children"].default)
         self.assertTrue(ICopyContentToLanguage["target_languages"].required)
+
+
+class TestTokenValuedPredicate(unittest.TestCase):
+    """The field predicate that keeps controlled tokens out of translation."""
+
+    def test_choice_fields_are_token_valued(self):
+        self.assertTrue(is_token_valued(ITestCategorized["test_category"]))
+        self.assertTrue(is_token_valued(ITestCategorized["test_topics"]))
+
+    def test_free_text_fields_are_not_token_valued(self):
+        self.assertFalse(is_token_valued(IBasic["title"]))
+        self.assertFalse(is_token_valued(IBasic["description"]))
 
 
 class TestReportViewModel(unittest.TestCase):
@@ -369,7 +383,7 @@ class TestCopier(unittest.TestCase):
     def test_copy_records_a_field_failure_and_rolls_back(self):
         doc = self._create_document(title="Hello")
 
-        def explode(self, source, target, key, field=None):
+        def explode(self, source, target, key, field=None, translatable=True):
             raise ValueError(f"cannot copy {key}")
 
         with mock.patch.object(ContentCopier, "change_content", explode):
@@ -730,9 +744,9 @@ class TestTranslateOnCopy(unittest.TestCase):
         copied_keys = []
         original = ContentCopier.change_content
 
-        def record(self, source, target, key, schema_field=None):
+        def record(self, source, target, key, schema_field=None, translatable=True):
             copied_keys.append(key)
-            return original(self, source, target, key, schema_field)
+            return original(self, source, target, key, schema_field, translatable)
 
         try:
             with mock.patch.object(ContentCopier, "change_content", record):
@@ -764,6 +778,19 @@ class TestTranslateOnCopy(unittest.TestCase):
         ContentCopier(doc).copy(["es"], include_context=True, translate=True)
 
         self.assertNotIn("one", [call[0] for call in self.service.calls])
+
+    def test_choice_field_is_not_translated(self):
+        doc = self._document(title="Hello")
+        doc.test_category = "alpha"
+
+        ContentCopier(doc).copy(["es"], include_context=True, translate=True)
+
+        translated = ITranslationManager(doc).get_translation("es")
+        # a controlled (token) field is copied verbatim...
+        self.assertEqual(translated.test_category, "alpha")
+        # ...while free text on the same object is still translated
+        self.assertEqual(translated.title, "[es] Hello")
+        self.assertNotIn("alpha", [call[0] for call in self.service.calls])
 
     def test_reports_fully_translated(self):
         doc = self._document(title="Hello", description="World")
