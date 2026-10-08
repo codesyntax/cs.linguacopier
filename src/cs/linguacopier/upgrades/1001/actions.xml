@@ -17,7 +17,6 @@
       <property name="description"
                 i18n:translate=""
       />
-      <property name="url_expr">string:$object_url/@@copy-content-to</property>
       <property name="icon_expr">string:folder-symlink</property>
       <property name="available_expr" />
       <property name="permissions">
