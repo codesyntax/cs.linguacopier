@@ -9,14 +9,16 @@ from cs.linguacopier.copier import ContentCopier
 from cs.linguacopier.copier import CopyError
 from cs.linguacopier.copier import CopyReport
 from cs.linguacopier.copier import CopyResult
+from cs.linguacopier.copier import derive_id_from_title
+from cs.linguacopier.copier import is_token_valued
 from cs.linguacopier.copier import NOT_TRANSLATED
 from cs.linguacopier.copier import PARTIAL
-from cs.linguacopier.copier import sort_by_physical_path_length
 from cs.linguacopier.copier import TRANSLATED
 from cs.linguacopier.interfaces import ITranslateThings
 from cs.linguacopier.testing import CS_LINGUACOPIER_FUNCTIONAL_TESTING
 from cs.linguacopier.testing import CS_LINGUACOPIER_INTEGRATION_TESTING
 from cs.linguacopier.testing import FakeTranslationService
+from cs.linguacopier.tests.behaviors import ITestCategorized
 from plone.app.dexterity.behaviors.metadata import IBasic
 from plone.app.multilingual.dx.interfaces import ILanguageIndependentField
 from plone.app.multilingual.interfaces import ITranslationManager
@@ -55,19 +57,52 @@ class DummyContent:
 
 
 class TestHelpers(unittest.TestCase):
-    def test_sort_by_physical_path_length(self):
-        a = DummyContent(("plone", "ca", "a"))
-        b = DummyContent(("plone", "ca", "a", "b", "c"))
-        c = DummyContent(("plone", "ca", "a", "b"))
-        self.assertEqual(sort_by_physical_path_length(a), 3)
-
-        result = sorted([b, c, a], key=sort_by_physical_path_length)
-        self.assertEqual(result, [a, c, b])
-
     def test_interface_defaults(self):
         self.assertTrue(ICopyContentToLanguage["include_context"].default)
         self.assertTrue(ICopyContentToLanguage["include_children"].default)
         self.assertTrue(ICopyContentToLanguage["target_languages"].required)
+
+
+class TestTokenValuedPredicate(unittest.TestCase):
+    """The field predicate that keeps controlled tokens out of translation."""
+
+    def test_choice_fields_are_token_valued(self):
+        self.assertTrue(is_token_valued(ITestCategorized["test_category"]))
+        self.assertTrue(is_token_valued(ITestCategorized["test_topics"]))
+
+    def test_free_text_fields_are_not_token_valued(self):
+        self.assertFalse(is_token_valued(IBasic["title"]))
+        self.assertFalse(is_token_valued(IBasic["description"]))
+
+
+class TestDeriveIdFromTitle(unittest.TestCase):
+    """Id derivation uses the target language's URL normalizer."""
+
+    layer = CS_LINGUACOPIER_FUNCTIONAL_TESTING
+
+    def setUp(self):
+        self.portal = self.layer["portal"]
+        setRoles(self.portal, TEST_USER_ID, ["Manager"])
+
+    def _doc(self, title):
+        return createContentInContainer(self.portal["ca"], "Document", title=title)
+
+    def test_uses_the_target_language_normalizer(self):
+        # the German normalizer maps "Ä" to "ae"; the generic one does not
+        doc = self._doc("Ärger")
+
+        derive_id_from_title(doc, "de")
+
+        self.assertEqual(doc.getId(), "aerger")
+
+    def test_keeps_the_id_when_the_title_normalizes_to_nothing(self):
+        doc = self._doc("Hello")
+        original = doc.getId()
+        doc.title = "!!!"
+
+        derive_id_from_title(doc, "es")
+
+        self.assertEqual(doc.getId(), original)
 
 
 class TestReportViewModel(unittest.TestCase):
@@ -168,6 +203,95 @@ class TestCopier(unittest.TestCase):
         form.extractData = lambda: (data, errors or [])
         form.copy_content_to(form, None)
         return form
+
+    # sibling order
+
+    def test_copy_preserves_nested_sibling_order(self):
+        folder = createContentInContainer(self.ca, "Folder", title="Folder")
+        sub = createContentInContainer(folder, "Folder", title="Sub")
+        x = createContentInContainer(sub, "Document", title="X")
+        y = createContentInContainer(sub, "Document", title="Y")
+        # reorder the subfolder: Y before X
+        sub.getOrdering().moveObjectToPosition(y.getId(), 0)
+
+        ContentCopier(folder).copy(["es"], include_context=True, include_children=True)
+
+        target_sub = ITranslationManager(sub).get_translation("es")
+        target_x = ITranslationManager(x).get_translation("es")
+        target_y = ITranslationManager(y).get_translation("es")
+        self.assertEqual(
+            list(target_sub.objectIds()), [target_y.getId(), target_x.getId()]
+        )
+
+    def test_copy_reorders_an_existing_translation(self):
+        folder = createContentInContainer(self.ca, "Folder", title="Folder")
+        a = createContentInContainer(folder, "Document", title="A")
+        b = createContentInContainer(folder, "Document", title="B")
+        # source order is B, A
+        folder.getOrdering().moveObjectToPosition(b.getId(), 0)
+        # pre-create the translations in the opposite order (A, B)
+        ITranslationManager(folder).add_translation("es")
+        target_a = ITranslationManager(a).add_translation("es")
+        target_b = ITranslationManager(b).add_translation("es")
+
+        ContentCopier(folder).copy(["es"], include_context=True, include_children=True)
+
+        target = ITranslationManager(folder).get_translation("es")
+        self.assertEqual(list(target.objectIds()), [target_b.getId(), target_a.getId()])
+
+    def test_copy_enumerates_each_item_once_in_document_order(self):
+        folder = createContentInContainer(self.ca, "Folder", title="Folder")
+        createContentInContainer(folder, "Document", title="A")
+        sub = createContentInContainer(folder, "Folder", title="Sub")
+        createContentInContainer(sub, "Document", title="X")
+        createContentInContainer(folder, "Document", title="B")
+
+        report = ContentCopier(folder).copy(
+            ["es"], include_context=True, include_children=True
+        )
+
+        # depth first, in the source's sibling order, and each item once
+        self.assertEqual(
+            [result.target.getId() for result in report.successes],
+            ["folder", "a", "sub", "x", "b"],
+        )
+
+    def test_copy_creates_parents_before_their_children(self):
+        folder = createContentInContainer(self.ca, "Folder", title="Folder")
+        sub = createContentInContainer(folder, "Folder", title="Sub")
+        subsub = createContentInContainer(sub, "Folder", title="SubSub")
+
+        report = ContentCopier(folder).copy(
+            ["es"], include_context=True, include_children=True
+        )
+
+        # items are processed (and so created) depth first, parents first
+        self.assertEqual(
+            [(result.target.getId(), result.language) for result in report.successes],
+            [("folder", "es"), ("sub", "es"), ("subsub", "es")],
+        )
+
+        # and each translation is nested under its parent's translation
+        folder_es = ITranslationManager(folder).get_translation("es")
+        sub_es = ITranslationManager(sub).get_translation("es")
+        subsub_es = ITranslationManager(subsub).get_translation("es")
+        self.assertEqual(sub_es.aq_parent, folder_es)
+        self.assertEqual(subsub_es.aq_parent, sub_es)
+
+    def test_copy_orders_contents_when_context_is_not_copied(self):
+        folder = createContentInContainer(self.ca, "Folder", title="Folder")
+        a = createContentInContainer(folder, "Document", title="A")
+        b = createContentInContainer(folder, "Document", title="B")
+        # source order is B, A
+        folder.getOrdering().moveObjectToPosition(b.getId(), 0)
+        # pre-create the folder translation and the children's, in A, B order
+        target = ITranslationManager(folder).add_translation("es")
+        target_a = ITranslationManager(a).add_translation("es")
+        target_b = ITranslationManager(b).add_translation("es")
+
+        ContentCopier(folder).copy(["es"], include_context=False, include_children=True)
+
+        self.assertEqual(list(target.objectIds()), [target_b.getId(), target_a.getId()])
 
     # copy_contents_of / copy pipeline
 
@@ -369,7 +493,7 @@ class TestCopier(unittest.TestCase):
     def test_copy_records_a_field_failure_and_rolls_back(self):
         doc = self._create_document(title="Hello")
 
-        def explode(self, source, target, key, field=None):
+        def explode(self, source, target, key, field=None, translatable=True):
             raise ValueError(f"cannot copy {key}")
 
         with mock.patch.object(ContentCopier, "change_content", explode):
@@ -730,9 +854,9 @@ class TestTranslateOnCopy(unittest.TestCase):
         copied_keys = []
         original = ContentCopier.change_content
 
-        def record(self, source, target, key, schema_field=None):
+        def record(self, source, target, key, schema_field=None, translatable=True):
             copied_keys.append(key)
-            return original(self, source, target, key, schema_field)
+            return original(self, source, target, key, schema_field, translatable)
 
         try:
             with mock.patch.object(ContentCopier, "change_content", record):
@@ -764,6 +888,71 @@ class TestTranslateOnCopy(unittest.TestCase):
         ContentCopier(doc).copy(["es"], include_context=True, translate=True)
 
         self.assertNotIn("one", [call[0] for call in self.service.calls])
+
+    def test_choice_field_is_not_translated(self):
+        doc = self._document(title="Hello")
+        doc.test_category = "alpha"
+
+        ContentCopier(doc).copy(["es"], include_context=True, translate=True)
+
+        translated = ITranslationManager(doc).get_translation("es")
+        # a controlled (token) field is copied verbatim...
+        self.assertEqual(translated.test_category, "alpha")
+        # ...while free text on the same object is still translated
+        self.assertEqual(translated.title, "[es] Hello")
+        self.assertNotIn("alpha", [call[0] for call in self.service.calls])
+
+    def test_translated_id_is_derived_from_the_translated_title(self):
+        doc = self._document(title="Hello")
+
+        ContentCopier(doc).copy(["es"], include_context=True, translate=True)
+
+        translated = ITranslationManager(doc).get_translation("es")
+        self.assertEqual(translated.title, "[es] Hello")
+        self.assertEqual(translated.getId(), "es-hello")
+
+    def test_translated_id_is_stable_on_a_recopy(self):
+        doc = self._document(title="Hello")
+        ContentCopier(doc).copy(["es"], include_context=True, translate=True)
+        first_id = ITranslationManager(doc).get_translation("es").getId()
+
+        ContentCopier(doc).copy(["es"], include_context=True, translate=True)
+
+        self.assertEqual(
+            ITranslationManager(doc).get_translation("es").getId(), first_id
+        )
+
+    def test_translated_id_keeps_the_default_when_title_is_empty(self):
+        doc = self._document(title="")
+
+        ContentCopier(doc).copy(["es"], include_context=True, translate=True)
+
+        translated = ITranslationManager(doc).get_translation("es")
+        self.assertEqual(translated.getId(), doc.getId())
+
+    def test_translated_ids_are_unique(self):
+        first = self._document(title="Hello")
+        second = self._document(title="Hello")
+
+        ContentCopier(first).copy(["es"], include_context=True, translate=True)
+        ContentCopier(second).copy(["es"], include_context=True, translate=True)
+
+        # the colliding second one is uniquified the Plone way, not the default
+        # chooser's "-<language>" form
+        self.assertEqual(
+            ITranslationManager(first).get_translation("es").getId(), "es-hello"
+        )
+        self.assertEqual(
+            ITranslationManager(second).get_translation("es").getId(), "es-hello-1"
+        )
+
+    def test_translated_id_is_in_the_report(self):
+        doc = self._document(title="Hello")
+
+        report = ContentCopier(doc).copy(["es"], include_context=True, translate=True)
+
+        self.assertEqual(report.successes[0].target.getId(), "es-hello")
+        self.assertTrue(report.successes[0].target.absolute_url().endswith("/es-hello"))
 
     def test_reports_fully_translated(self):
         doc = self._document(title="Hello", description="World")

@@ -1,0 +1,5 @@
+msgid ""
+msgstr ""
+
+msgid "Copy language content"
+msgstr ""

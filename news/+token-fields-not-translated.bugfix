@@ -1,0 +1,4 @@
+Stop translating fields whose value is a controlled token — a vocabulary term, a
+taxonomy value, or any other enumerated value. Such fields are now copied
+verbatim, so a translated copy never stores an invalid value that can break the
+page that renders it; free text is still translated.
