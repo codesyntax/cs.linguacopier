@@ -9,6 +9,30 @@
 
 <!-- towncrier release notes start -->
 
+## 2.2 (2026-10-08)
+
+
+### New features
+
+- When a copy translates content, the copied object's id (its URL segment) is now
+  derived from its translated title, normalized with the target language's rules,
+  so a translated page has a URL in the target language instead of the original
+  wording. It applies only when a translation is first created, keeps the default
+  id when the title is empty, and makes colliding ids unique the Plone way. 
+
+
+### Bug fixes
+
+- A copied subtree now keeps the source's sibling order. The copier enumerates each
+  folder's direct children in their position order and, once the copy is done, sets
+  each target folder's order to match its source, so a translated section reads in
+  the same sequence as the original (including nested folders and existing
+  translations). 
+- Stop translating fields whose value is a controlled token — a vocabulary term, a
+  taxonomy value, or any other enumerated value. Such fields are now copied
+  verbatim, so a translated copy never stores an invalid value that can break the
+  page that renders it; free text is still translated. 
+
 ## 2.1 (2026-10-05)
 
 
