@@ -239,6 +239,23 @@ class TestCopier(unittest.TestCase):
         target = ITranslationManager(folder).get_translation("es")
         self.assertEqual(list(target.objectIds()), [target_b.getId(), target_a.getId()])
 
+    def test_copy_enumerates_each_item_once_in_document_order(self):
+        folder = createContentInContainer(self.ca, "Folder", title="Folder")
+        createContentInContainer(folder, "Document", title="A")
+        sub = createContentInContainer(folder, "Folder", title="Sub")
+        createContentInContainer(sub, "Document", title="X")
+        createContentInContainer(folder, "Document", title="B")
+
+        report = ContentCopier(folder).copy(
+            ["es"], include_context=True, include_children=True
+        )
+
+        # depth first, in the source's sibling order, and each item once
+        self.assertEqual(
+            [result.target.getId() for result in report.successes],
+            ["folder", "a", "sub", "x", "b"],
+        )
+
     def test_copy_creates_parents_before_their_children(self):
         folder = createContentInContainer(self.ca, "Folder", title="Folder")
         sub = createContentInContainer(folder, "Folder", title="Sub")
