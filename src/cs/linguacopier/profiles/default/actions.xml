@@ -11,8 +11,7 @@
             name="copy_content_to"
     >
       <property name="title"
-                i18n:domain="cs.linguacopier"
-                i18n:translate="copy_content_to"
+                i18n:translate=""
       >Copy language content</property>
       <property name="description"
                 i18n:translate=""
