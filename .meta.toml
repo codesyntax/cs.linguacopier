@@ -10,7 +10,7 @@ commit-id = "2.11.1"
 test_matrix = { "6.2" = ["*"] }
 
 [pyproject]
-dependencies_ignores = "['plone.restapi']"
+dependencies_ignores = "['plone.restapi', 'collective.z3cform.datagridfield']"
 
 
 [gitignore]
