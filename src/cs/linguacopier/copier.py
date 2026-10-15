@@ -7,6 +7,8 @@ the browser layer.
 
 from Acquisition import aq_parent
 from cs.linguacopier import translation
+from cs.linguacopier.fields import is_datagrid_field
+from cs.linguacopier.fields import is_translatable_field
 from cs.linguacopier.interfaces import ITranslateThings
 from dataclasses import dataclass
 from dataclasses import field
@@ -19,18 +21,16 @@ from plone.dexterity.interfaces import IDexterityContent
 from plone.dexterity.utils import iterSchemata
 from plone.folder.interfaces import IExplicitOrdering
 from plone.i18n.normalizer.interfaces import IURLNormalizer
-from plone.uuid.interfaces import IUUID
 from Products.CMFCore.interfaces import IFolderish
 from z3c.relationfield import RelationValue
+from z3c.relationfield.schema import RelationChoice
 from z3c.relationfield.schema import RelationList
-from zope import schema
 from zope.component import getAdapters
 from zope.component import getUtility
 from zope.component import queryUtility
 from zope.container.interfaces import INameChooser
 from zope.intid.interfaces import IIntIds
 from zope.schema import getFieldsInOrder
-from zope.schema.interfaces import IChoice
 
 import transaction
 
@@ -50,20 +50,6 @@ SKIPPED = "skipped"
 TRANSLATED = "translated"
 PARTIAL = "partial"
 NOT_TRANSLATED = "not_translated"
-
-
-def is_token_valued(field):
-    """Whether a schema field stores a controlled token, not free text.
-
-    A ``Choice`` field, or a collection whose ``value_type`` is a ``Choice``,
-    holds a vocabulary/taxonomy token; translating it would store an invalid
-    value that can break rendering. This is the same test ``plone.restapi`` uses
-    to recognise enumerable fields.
-    """
-    if IChoice.providedBy(field):
-        return True
-    value_type = getattr(field, "value_type", None)
-    return value_type is not None and IChoice.providedBy(value_type)
 
 
 def derive_id_from_title(obj, language):
@@ -286,34 +272,6 @@ class ContentCopier:
             )
         )
 
-    def copy_related_fields(self, obj, target_languages):
-        # XXX: Where is this used?
-        try:
-            fields = schema.getFieldsInOrder(obj.getTypeInfo().lookupSchema())
-        except AttributeError as e:
-            log.info("Error: %s", "/".join(obj.getPhysicalPath()))
-            log.exception(e)
-
-        pcat = api.portal.get_tool("portal_catalog")
-        for key, value in fields:
-            value = value.get(obj)
-            if isinstance(value, list):
-                manager = ITranslationManager(obj)
-                for language in target_languages:
-                    translated_obj = manager.get_translation(language)
-                    uid_list = []
-
-                    for uid in value:
-                        element = pcat(UID=uid, Language=obj.Language())
-                        if element:
-                            manager = ITranslationManager(element[0].getObject())
-                            element_trans = manager.get_translation(language)
-                            if element_trans:
-                                uid_list.append(IUUID(element_trans))
-                    if uid_list:
-                        setattr(translated_obj, key, uid_list)
-                        translated_obj.reindexObject()
-
     def copy_other_things(self, original, translated):
         """Use an adapter lookup so developers can extend the copier"""
         adapters = getAdapters((original, translated), ITranslateThings)
@@ -343,8 +301,8 @@ class ContentCopier:
     def copy_fields_dexterity(self, source, target):
         # iterSchemata yields the object's own schema first, then a schema per
         # enabled behavior. Each field is seen once and its field object is
-        # available, which the language-independent check needs.
-        for index, field_schema in enumerate(iterSchemata(source)):
+        # available, so it can be classified and its relations remapped.
+        for field_schema in iterSchemata(source):
             source_adapter = field_schema(source, None)
             target_adapter = field_schema(target, None)
             if source_adapter is None or target_adapter is None:
@@ -360,45 +318,18 @@ class ContentCopier:
                     # relations) when a translation is created and keeps them in
                     # sync afterwards, so the copier leaves them alone.
                     continue
-                self.change_content(
-                    source_adapter,
-                    target_adapter,
-                    name,
-                    None if index else schema_field,
-                    # Vocabulary/taxonomy/choice fields hold tokens, not free
-                    # text; copy them verbatim so the copy never stores an
-                    # invalid value.
-                    translatable=not is_token_valued(schema_field),
-                )
+                self.change_content(source_adapter, target_adapter, name, schema_field)
 
-    def change_content(self, source, target, key, field=None, translatable=True):
+    def change_content(self, source, target, key, field=None):
         source_value = getattr(source, key)
         value = getattr(source_value, "raw", source_value)
         if isinstance(field, RelationList):
-            intids = getUtility(IIntIds)
-            target_language = target.Language()
-            related_translations = []
-            for relation_field in value:
-                related_element = relation_field.to_object
-                if related_element:
-                    related_element_translation = ITranslationManager(
-                        related_element
-                    ).get_translation(target_language)
-                    if related_element_translation:
-                        try:
-                            to_id = intids.getId(related_element_translation)
-                        except KeyError:
-                            to_id = intids.register(related_element_translation)
-                        related_translations.append(RelationValue(to_id))
-            value = related_translations
-        if self.translate and translatable and isinstance(value, str) and value:
-            # Scalars and rich text raw HTML are both plain strings here; the
-            # original value is kept when the service returns nothing.
-            self._eligible_fields += 1
-            translated_value = self._translate_value(value)
-            if translated_value is not None:
-                self._translated_fields += 1
-                value = translated_value
+            value = self._translated_relations(value, target)
+        elif isinstance(field, RelationChoice) and value is not None:
+            translated_relation = self._translated_relation(value, target)
+            if translated_relation is not None:
+                value = translated_relation
+        value = self._translated_value(value, field)
         if getattr(source_value, "raw", None) is not None:
             value = RichTextValue(value, "text/html", "text/x-html-safe")
 
@@ -411,6 +342,69 @@ class ContentCopier:
                 key,
                 "/".join(target.context.getPhysicalPath()),
             )
+
+    def _translated_relations(self, relations, target):
+        """Remap a relation list to each related object's translation."""
+        translated = []
+        for relation in relations:
+            new_relation = self._translated_relation(relation, target)
+            if new_relation is not None:
+                translated.append(new_relation)
+        return translated
+
+    def _translated_relation(self, relation, target):
+        """The relation to the related object's translation, or ``None``."""
+        related = relation.to_object if relation is not None else None
+        if related is None:
+            return None
+        translated = ITranslationManager(related).get_translation(target.Language())
+        if translated is None:
+            return None
+        intids = getUtility(IIntIds)
+        try:
+            to_id = intids.getId(translated)
+        except KeyError:
+            to_id = intids.register(translated)
+        return RelationValue(to_id)
+
+    def _translated_value(self, value, field):
+        """Translate the free-text parts of ``value`` for ``field``.
+
+        Only free text is translated. A data grid recurses into its rows, so the
+        same rule handles every cell — and a nested data grid — at any depth.
+        """
+        if not self.translate or field is None:
+            return value
+        if is_datagrid_field(field):
+            return self._translate_rows(value, field)
+        if is_translatable_field(field) and isinstance(value, str) and value:
+            return self._translate_text(value)
+        return value
+
+    def _translate_text(self, value):
+        """Translate free text, counting it for the translation outcome."""
+        self._eligible_fields += 1
+        translated = self._translate_value(value)
+        if translated is None:
+            return value
+        self._translated_fields += 1
+        return translated
+
+    def _translate_rows(self, rows, field):
+        """Translate the free-text cells of a data grid's rows."""
+        row_schema = getattr(field.value_type, "schema", None)
+        if row_schema is None:
+            return rows
+        translated_rows = []
+        for row in rows or []:
+            translated_row = dict(row)
+            for name, column in getFieldsInOrder(row_schema):
+                if name in translated_row:
+                    translated_row[name] = self._translated_value(
+                        translated_row[name], column
+                    )
+            translated_rows.append(translated_row)
+        return translated_rows
 
     def _translate_value(self, value):
         """Translate a value; return ``None`` when nothing translated it."""

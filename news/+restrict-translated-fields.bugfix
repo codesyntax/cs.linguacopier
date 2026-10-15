@@ -1,0 +1,5 @@
+Only free-text field values are now sent to the translation service. Controlled
+tokens (vocabulary/taxonomy choices), numbers, booleans, dates and times, e-mail
+addresses, URLs, passwords, relations, JSON, and file/image blobs are copied
+verbatim, so missing translation calls are avoided and their values are never
+sent to a translator.

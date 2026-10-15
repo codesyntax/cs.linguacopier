@@ -1,5 +1,8 @@
-"""Test-only behavior providing controlled (token) fields."""
+"""Test-only behavior providing controlled (token) and structured fields."""
 
+from collective.z3cform.datagridfield.datagridfield import DataGridFieldWidgetFactory
+from collective.z3cform.datagridfield.row import DictRow
+from plone.autoform import directives
 from plone.autoform.interfaces import IFormFieldProvider
 from zope import schema
 from zope.interface import alsoProvides
@@ -50,3 +53,51 @@ class TestCategorized:
     @test_topics.setter
     def test_topics(self, value):
         self.context.test_topics = value
+
+
+class ITestSubRow(Interface):
+    """A row schema for a data grid nested inside another one."""
+
+    note = schema.TextLine(title="Note", required=False)
+
+
+class ITestDataGridRow(Interface):
+    """A row schema for a test data grid: text, non-text and a nested grid."""
+
+    label = schema.TextLine(title="Label", required=False)
+    amount = schema.Int(title="Amount", required=False)
+    sub_rows = schema.List(
+        title="Sub rows",
+        value_type=DictRow(schema=ITestSubRow),
+        required=False,
+    )
+
+
+class ITestDataGrid(Interface):
+    """A behavior with a data grid field."""
+
+    test_rows = schema.List(
+        title="Rows",
+        value_type=DictRow(schema=ITestDataGridRow),
+        required=False,
+    )
+
+
+directives.widget("test_rows", DataGridFieldWidgetFactory)
+alsoProvides(ITestDataGrid, IFormFieldProvider)
+
+
+@implementer(ITestDataGrid)
+class TestDataGrid:
+    """Store the data grid value as an attribute on the content."""
+
+    def __init__(self, context):
+        self.context = context
+
+    @property
+    def test_rows(self):
+        return getattr(self.context, "test_rows", None)
+
+    @test_rows.setter
+    def test_rows(self, value):
+        self.context.test_rows = value

@@ -124,7 +124,7 @@ Zope = [
 ]
 python-dateutil = ['dateutil']
 pytest-plone = ['pytest', 'zope.pytestlayer', 'plone.testing', 'plone.app.testing']
-ignore-packages = ['plone.restapi']
+ignore-packages = ['plone.restapi', 'collective.z3cform.datagridfield']
 
 ##
 # Add extra configuration options in .meta.toml:

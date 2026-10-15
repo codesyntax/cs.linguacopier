@@ -47,8 +47,8 @@ setup(
         "plone.dexterity",
         "plone.folder",
         "plone.i18n",
+        "plone.namedfile",
         "plone.protect",
-        "plone.uuid",
         "Products.GenericSetup>=1.8.2",
         "z3c.form",
         "z3c.relationfield",
@@ -57,6 +57,7 @@ setup(
     ],
     extras_require={
         "test": [
+            "collective.z3cform.datagridfield",
             "plone.app.contenttypes",
             "plone.app.dexterity",
             "plone.app.relationfield",
@@ -64,6 +65,7 @@ setup(
             "plone.app.testing",
             "plone.autoform",
             "plone.browserlayer",
+            "plone.namedfile",
             "plone.restapi",
             "plone.testing",
             "Products.statusmessages",

@@ -10,10 +10,10 @@ from cs.linguacopier.copier import CopyError
 from cs.linguacopier.copier import CopyReport
 from cs.linguacopier.copier import CopyResult
 from cs.linguacopier.copier import derive_id_from_title
-from cs.linguacopier.copier import is_token_valued
 from cs.linguacopier.copier import NOT_TRANSLATED
 from cs.linguacopier.copier import PARTIAL
 from cs.linguacopier.copier import TRANSLATED
+from cs.linguacopier.fields import is_translatable_field
 from cs.linguacopier.interfaces import ITranslateThings
 from cs.linguacopier.testing import CS_LINGUACOPIER_FUNCTIONAL_TESTING
 from cs.linguacopier.testing import CS_LINGUACOPIER_INTEGRATION_TESTING
@@ -38,6 +38,7 @@ from Products.statusmessages.interfaces import IStatusMessage
 from unittest import mock
 from z3c.form.interfaces import WidgetActionExecutionError
 from z3c.relationfield import RelationValue
+from z3c.relationfield.schema import RelationChoice
 from zope.component import getGlobalSiteManager
 from zope.component import getUtility
 from zope.interface import alsoProvides
@@ -63,16 +64,70 @@ class TestHelpers(unittest.TestCase):
         self.assertTrue(ICopyContentToLanguage["target_languages"].required)
 
 
-class TestTokenValuedPredicate(unittest.TestCase):
-    """The field predicate that keeps controlled tokens out of translation."""
+class TestTranslatableFieldPredicate(unittest.TestCase):
+    """Only free-text fields are sent to the translation service."""
 
-    def test_choice_fields_are_token_valued(self):
-        self.assertTrue(is_token_valued(ITestCategorized["test_category"]))
-        self.assertTrue(is_token_valued(ITestCategorized["test_topics"]))
+    def test_free_text_fields_are_translatable(self):
+        from plone.app.contenttypes.behaviors.richtext import IRichTextBehavior
 
-    def test_free_text_fields_are_not_token_valued(self):
-        self.assertFalse(is_token_valued(IBasic["title"]))
-        self.assertFalse(is_token_valued(IBasic["description"]))
+        self.assertTrue(is_translatable_field(IBasic["title"]))
+        self.assertTrue(is_translatable_field(IBasic["description"]))
+        self.assertTrue(is_translatable_field(IRichTextBehavior["text"]))
+
+    def test_none_is_not_translatable(self):
+        self.assertFalse(is_translatable_field(None))
+
+    def test_non_text_fields_are_not_translatable(self):
+        from plone.namedfile.field import NamedBlobFile
+        from plone.namedfile.field import NamedBlobImage
+        from plone.schema import Email
+        from plone.schema import JSONField
+        from z3c.relationfield.schema import RelationChoice
+        from z3c.relationfield.schema import RelationList
+        from zope.schema import Bool
+        from zope.schema import Date
+        from zope.schema import Datetime
+        from zope.schema import Decimal
+        from zope.schema import Float
+        from zope.schema import Int
+        from zope.schema import Password
+        from zope.schema import Time
+        from zope.schema import URI
+
+        not_translatable = {
+            "choice": ITestCategorized["test_category"],
+            "choice list": ITestCategorized["test_topics"],
+            "bool": Bool(),
+            "int": Int(),
+            "float": Float(),
+            "decimal": Decimal(),
+            "date": Date(),
+            "datetime": Datetime(),
+            "time": Time(),
+            "email": Email(),
+            "uri": URI(),
+            "password": Password(),
+            "json": JSONField(),
+            "relation choice": RelationChoice(
+                vocabulary="plone.app.vocabularies.Catalog"
+            ),
+            "relation list": RelationList(
+                value_type=RelationChoice(vocabulary="plone.app.vocabularies.Catalog")
+            ),
+            "blob image": NamedBlobImage(),
+            "blob file": NamedBlobFile(),
+        }
+        for label, field in not_translatable.items():
+            with self.subTest(field=label):
+                self.assertFalse(is_translatable_field(field))
+
+    def test_metadata_fields_are_not_translatable(self):
+        from plone.app.dexterity.behaviors.metadata import IOwnership
+
+        # the ownership fieldset: metadata, not content
+        self.assertFalse(is_translatable_field(IOwnership["creators"]))
+        self.assertFalse(is_translatable_field(IOwnership["contributors"]))
+        self.assertFalse(is_translatable_field(IOwnership["rights"]))
 
 
 class TestDeriveIdFromTitle(unittest.TestCase):
@@ -403,6 +458,25 @@ class TestCopier(unittest.TestCase):
         self.assertEqual(len(translated.relatedItems), 1)
         self.assertEqual(translated.relatedItems[0].to_object, related_es)
 
+    def test_change_content_relation_choice(self):
+        related = self._create_document(title="Related")
+        doc = self._create_document(title="Main")
+        ITranslationManager(related).add_translation("es")
+        translated = ITranslationManager(doc).add_translation("es")
+
+        intids = getUtility(IIntIds)
+        try:
+            related_id = intids.getId(related)
+        except KeyError:
+            related_id = intids.register(related)
+        doc.test_related = RelationValue(related_id)
+
+        field = RelationChoice(vocabulary="plone.app.vocabularies.Catalog")
+        ContentCopier(doc).change_content(doc, translated, "test_related", field)
+
+        related_es = ITranslationManager(related).get_translation("es")
+        self.assertEqual(translated.test_related.to_object, related_es)
+
     def test_language_independent_relation_is_left_to_pam(self):
         # relatedItems is marked language-independent in the test fixture.
         # The copier skips it; plone.app.multilingual copies it when it creates
@@ -493,7 +567,7 @@ class TestCopier(unittest.TestCase):
     def test_copy_records_a_field_failure_and_rolls_back(self):
         doc = self._create_document(title="Hello")
 
-        def explode(self, source, target, key, field=None, translatable=True):
+        def explode(self, source, target, key, field=None):
             raise ValueError(f"cannot copy {key}")
 
         with mock.patch.object(ContentCopier, "change_content", explode):
@@ -854,9 +928,9 @@ class TestTranslateOnCopy(unittest.TestCase):
         copied_keys = []
         original = ContentCopier.change_content
 
-        def record(self, source, target, key, schema_field=None, translatable=True):
+        def record(self, source, target, key, schema_field=None):
             copied_keys.append(key)
-            return original(self, source, target, key, schema_field, translatable)
+            return original(self, source, target, key, schema_field)
 
         try:
             with mock.patch.object(ContentCopier, "change_content", record):
@@ -901,6 +975,45 @@ class TestTranslateOnCopy(unittest.TestCase):
         # ...while free text on the same object is still translated
         self.assertEqual(translated.title, "[es] Hello")
         self.assertNotIn("alpha", [call[0] for call in self.service.calls])
+
+    def test_datagrid_text_columns_are_translated(self):
+        doc = self._document(title="Hello")
+        doc.test_rows = [{"label": "First", "amount": 3}]
+
+        ContentCopier(doc).copy(["es"], include_context=True, translate=True)
+
+        rows = ITranslationManager(doc).get_translation("es").test_rows
+        # only the free-text column is translated; the number is copied as is
+        self.assertEqual(rows[0]["label"], "[es] First")
+        self.assertEqual(rows[0]["amount"], 3)
+        self.assertIn(("First", "ca", "es"), self.service.calls)
+
+    def test_metadata_field_is_not_translated(self):
+        doc = self._document(title="Hello")
+        doc.rights = "All rights reserved"
+
+        ContentCopier(doc).copy(["es"], include_context=True, translate=True)
+
+        translated = ITranslationManager(doc).get_translation("es")
+        # the ownership metadata is copied verbatim, never sent to the service
+        self.assertEqual(translated.rights, "All rights reserved")
+        self.assertNotIn(
+            "All rights reserved", [call[0] for call in self.service.calls]
+        )
+
+    def test_data_grid_is_translated_recursively(self):
+        doc = self._document(title="Hello")
+        doc.test_rows = [
+            {"label": "First", "amount": 3, "sub_rows": [{"note": "Deep"}]}
+        ]
+
+        ContentCopier(doc).copy(["es"], include_context=True, translate=True)
+
+        row = ITranslationManager(doc).get_translation("es").test_rows[0]
+        self.assertEqual(row["label"], "[es] First")
+        self.assertEqual(row["amount"], 3)
+        # a nested data grid is translated by the same rule
+        self.assertEqual(row["sub_rows"][0]["note"], "[es] Deep")
 
     def test_translated_id_is_derived_from_the_translated_title(self):
         doc = self._document(title="Hello")
