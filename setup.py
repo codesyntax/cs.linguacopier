@@ -47,6 +47,7 @@ setup(
         "plone.dexterity",
         "plone.folder",
         "plone.i18n",
+        "plone.namedfile",
         "plone.protect",
         "plone.uuid",
         "Products.GenericSetup>=1.8.2",
