@@ -1,0 +1,20 @@
+<configure
+    xmlns="http://namespaces.zope.org/zope"
+    xmlns:gs="http://namespaces.zope.org/genericsetup"
+    >
+
+  <gs:upgradeSteps
+      profile="cs.linguacopier:default"
+      source="1001"
+      destination="1002"
+      >
+
+    <gs:upgradeStep
+        title="Register the content copier control panels and settings"
+        description="Install the Site Setup configlets and the copier settings records."
+        handler=".v1002.upgrade"
+        />
+
+  </gs:upgradeSteps>
+
+</configure>
