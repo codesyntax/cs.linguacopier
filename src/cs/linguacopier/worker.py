@@ -1,7 +1,14 @@
 """Background worker for copy jobs.
 
 Run it as an external command against the same database, scheduled by cron or a
-systemd timer, for example::
+systemd timer. The package ships a ``linguacopier-worker`` console script that
+boots the instance from its configuration file, so the worker can be scheduled
+by name without knowing where the package is installed (handy in containers)::
+
+    linguacopier-worker /path/to/instance/etc/zope.conf
+
+It can also be run through the instance's own script, which is convenient
+during development::
 
     bin/instance run src/cs/linguacopier/worker.py
 
@@ -31,6 +38,7 @@ from plone import api
 from zope.component import getUtility
 from zope.component.hooks import setSite
 
+import argparse
 import transaction
 
 log = getLogger("cs.linguacopier.worker")
@@ -223,6 +231,31 @@ def main(app):
     sites = [obj for obj in app.objectValues() if IPloneSiteRoot.providedBy(obj)]
     for site in sites:
         process_pending_jobs(site)
+
+
+def run(argv=None):
+    """Entry point for the ``linguacopier-worker`` console script.
+
+    Boots the Zope application from the instance's configuration file and drains
+    every Plone site's queue, so the worker can be scheduled by command name
+    without knowing where the package is installed::
+
+        linguacopier-worker /path/to/instance/etc/zope.conf
+
+    It delegates to :func:`Zope2.utilities.zconsole.runscript`, the same
+    bootstrapping ``zconsole run`` uses; that re-executes this module as
+    ``__main__`` with ``app`` bound, running the block below.
+    """
+    parser = argparse.ArgumentParser(
+        prog="linguacopier-worker",
+        description="Process queued cs.linguacopier background copy jobs.",
+    )
+    parser.add_argument("zopeconf", help="path to the instance's zope.conf")
+    args = parser.parse_args(argv)
+
+    from Zope2.utilities.zconsole import runscript
+
+    runscript(args.zopeconf, __file__)
 
 
 if __name__ == "__main__":

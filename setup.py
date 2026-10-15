@@ -77,6 +77,9 @@ setup(
         ],
     },
     entry_points="""
+    [console_scripts]
+    linguacopier-worker = cs.linguacopier.worker:run
+
     [z3c.autoinclude.plugin]
     target = plone
     """,

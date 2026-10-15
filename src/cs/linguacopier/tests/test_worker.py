@@ -2,6 +2,7 @@
 
 from AccessControl.SecurityManagement import newSecurityManager
 from AccessControl.users import nobody
+from cs.linguacopier import worker
 from cs.linguacopier.copier import ContentCopier
 from cs.linguacopier.interfaces import ICopyJobQueue
 from cs.linguacopier.jobs import CANCELLED
@@ -58,6 +59,14 @@ class TestWorker(unittest.TestCase):
         registry = getUtility(IRegistry)
         registry[f"cs.linguacopier.{name}"] = value
         transaction.commit()
+
+    def test_run_boots_the_instance_from_the_config(self):
+        # the console script delegates to zconsole's runscript, which re-execs
+        # this module as __main__ with ``app`` bound
+        with mock.patch("Zope2.utilities.zconsole.runscript") as runscript:
+            worker.run(["instance.conf"])
+
+        runscript.assert_called_once_with("instance.conf", worker.__file__)
 
     def _folder_with_children(self, count):
         folder = createContentInContainer(self.ca, "Folder", title="Folder")
