@@ -4,7 +4,7 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
-"POT-Creation-Date: 2026-10-15 08:19+0000\n"
+"POT-Creation-Date: 2026-10-15 08:44+0000\n"
 "PO-Revision-Date: 2026-10-02 11:28+0200\n"
 "Last-Translator: Mikel Larreategi <mlarreategi@codesyntax.com>\n"
 "Language-Team: Spanish <es@tp.org.es>\n"
@@ -20,32 +20,32 @@ msgstr ""
 
 #: cs/linguacopier/browser/jobs.pt:41
 msgid "Actions"
-msgstr ""
+msgstr "Acciones"
 
 #: cs/linguacopier/browser/vocabularies.py:16
 msgid "Automatic"
-msgstr ""
+msgstr "Automático"
 
 #: cs/linguacopier/interfaces.py:36
 msgid "Background chunk size"
-msgstr ""
+msgstr "Tamaño del bloque en segundo plano"
 
 #: cs/linguacopier/browser/jobs.pt:83
 msgid "Cancel"
-msgstr ""
+msgstr "Cancelar"
 
-#: cs/linguacopier/browser/controlpanel.py:116
+#: cs/linguacopier/browser/controlpanel.py:121
 msgid "Cancelled"
-msgstr ""
+msgstr "Cancelado"
 
 #: cs/linguacopier/browser/controlpanel.py:35
 msgid "Configure the content copier and how its background jobs are run."
-msgstr ""
+msgstr "Configura el copiador de contenido y cómo se ejecutan sus tareas en segundo plano."
 
 #: cs/linguacopier/browser/controlpanel.py:34
 #: cs/linguacopier/profiles/default/controlpanel.xml
 msgid "Content copier"
-msgstr ""
+msgstr "Copiador de contenido"
 
 #: cs/linguacopier/browser/copier.py:219
 msgid "Contents copied successfully"
@@ -53,7 +53,7 @@ msgstr "Contenidos copiados correctamente"
 
 #: cs/linguacopier/browser/jobs.pt:33
 msgid "Context"
-msgstr ""
+msgstr "Contexto"
 
 #: cs/linguacopier/browser/copier.py:164
 msgid "Copy content"
@@ -61,16 +61,16 @@ msgstr "Copiar contenido"
 
 #: cs/linguacopier/browser/copier.py:199
 msgid "Copy job started in the background."
-msgstr ""
+msgstr "La tarea de copia se ha iniciado en segundo plano."
 
 #: cs/linguacopier/browser/jobs.pt:10
 #: cs/linguacopier/profiles/default/controlpanel.xml
 msgid "Copy jobs"
-msgstr ""
+msgstr "Tareas de copia"
 
 #: cs/linguacopier/browser/copier.py:124
 msgid "Copy mode"
-msgstr ""
+msgstr "Modo de copia"
 
 #: cs/linguacopier/browser/copier.pt:32
 msgid "Copy report"
@@ -88,11 +88,11 @@ msgstr "Creado"
 
 #: cs/linguacopier/interfaces.py:17
 msgid "Default copy mode"
-msgstr ""
+msgstr "Modo de copia predeterminado"
 
 #: cs/linguacopier/browser/jobs.pt:97
 msgid "Delete"
-msgstr ""
+msgstr "Eliminar"
 
 #: cs/linguacopier/browser/copier.pt:94
 msgid "Detail"
@@ -100,25 +100,25 @@ msgstr "Detalle"
 
 #: cs/linguacopier/interfaces.py:27
 msgid "Direct copy size limit"
-msgstr ""
+msgstr "Límite de tamaño para la copia directa"
 
 #: cs/linguacopier/browser/vocabularies.py:17
 msgid "Directly"
-msgstr ""
+msgstr "Directamente"
 
-#: cs/linguacopier/browser/controlpanel.py:114
+#: cs/linguacopier/browser/controlpanel.py:119
 msgid "Done"
-msgstr ""
+msgstr "Completado"
 
 #: cs/linguacopier/browser/jobs.pt:40
 msgid "Errors"
-msgstr ""
+msgstr "Errores"
 
 #: cs/linguacopier/browser/copier.pt:39
 msgid "Export as CSV"
 msgstr "Exportar como CSV"
 
-#: cs/linguacopier/browser/controlpanel.py:115
+#: cs/linguacopier/browser/controlpanel.py:120
 #: cs/linguacopier/browser/copier.pt:50
 #: cs/linguacopier/browser/copier.py:259
 msgid "Failed"
@@ -126,15 +126,15 @@ msgstr "Fallido"
 
 #: cs/linguacopier/browser/jobs.pt:39
 msgid "Finished"
-msgstr ""
+msgstr "Finalizado"
 
 #: cs/linguacopier/interfaces.py:65
 msgid "Finished jobs beyond this many are pruned by the worker."
-msgstr ""
+msgstr "Las tareas finalizadas que superen este número se eliminan por el worker."
 
 #: cs/linguacopier/interfaces.py:59
 msgid "Finished jobs older than this are pruned by the worker."
-msgstr ""
+msgstr "Las tareas finalizadas con más antigüedad que esta se eliminan por el worker."
 
 #: cs/linguacopier/browser/copier.pt:117
 msgid "Go back to the form"
@@ -142,15 +142,15 @@ msgstr "Volver al formulario"
 
 #: cs/linguacopier/interfaces.py:18
 msgid "How a copy without an explicit mode is run: automatically, directly, or in the background."
-msgstr ""
+msgstr "Cómo se ejecuta una copia sin un modo explícito: automáticamente, directamente o en segundo plano."
 
 #: cs/linguacopier/interfaces.py:43
 msgid "How many times a background job retries a transient failure."
-msgstr ""
+msgstr "Cuántas veces una tarea en segundo plano reintenta un fallo transitorio."
 
 #: cs/linguacopier/browser/jobs.pt:31
 msgid "Id"
-msgstr ""
+msgstr "Id"
 
 #: cs/linguacopier/browser/copier.py:96
 msgid "If selected, all the subobjects of this object will also be translated"
@@ -162,11 +162,11 @@ msgstr "Si se selecciona, se traducirá el elemento de contexto"
 
 #: cs/linguacopier/interfaces.py:28
 msgid "In automatic mode, run the copy directly when the estimated work (objects times target languages) is at or below this number."
-msgstr ""
+msgstr "En modo automático, ejecuta la copia directamente cuando el trabajo estimado (objetos por idiomas de destino) sea igual o inferior a este número."
 
 #: cs/linguacopier/browser/vocabularies.py:18
 msgid "In the background"
-msgstr ""
+msgstr "En segundo plano"
 
 #: cs/linguacopier/browser/copier.py:88
 msgid "Include context element?"
@@ -180,21 +180,21 @@ msgstr "¿Incluir el contenido?"
 msgid "Installs the cs.linguacopier add-on."
 msgstr "Instala el complemento cs.linguacopier."
 
-#: cs/linguacopier/browser/controlpanel.py:72
+#: cs/linguacopier/browser/controlpanel.py:71
 msgid "Job cancelled."
-msgstr ""
+msgstr "Tarea cancelada."
 
-#: cs/linguacopier/browser/controlpanel.py:83
+#: cs/linguacopier/browser/controlpanel.py:86
 msgid "Job deleted."
-msgstr ""
+msgstr "Tarea eliminada."
 
 #: cs/linguacopier/browser/controlpanel.py:78
 msgid "Job queued again."
-msgstr ""
+msgstr "Tarea encolada de nuevo."
 
 #: cs/linguacopier/interfaces.py:58
 msgid "Job retention (days)"
-msgstr ""
+msgstr "Retención de tareas (días)"
 
 #: cs/linguacopier/browser/copier.pt:89
 msgid "Language"
@@ -202,23 +202,23 @@ msgstr "Idioma"
 
 #: cs/linguacopier/browser/jobs.pt:34
 msgid "Languages"
-msgstr ""
+msgstr "Idiomas"
 
 #: cs/linguacopier/interfaces.py:42
 msgid "Maximum retries"
-msgstr ""
+msgstr "Reintentos máximos"
 
 #: cs/linguacopier/interfaces.py:64
 msgid "Maximum stored jobs"
-msgstr ""
+msgstr "Número máximo de tareas almacenadas"
 
 #: cs/linguacopier/browser/jobs.pt:16
 msgid "No background worker has run recently. Queued jobs will not progress until the worker is scheduled."
-msgstr ""
+msgstr "Ningún worker en segundo plano se ha ejecutado recientemente. Las tareas encoladas no avanzarán hasta que se programe el worker."
 
-#: cs/linguacopier/browser/controlpanel.py:70
+#: cs/linguacopier/browser/controlpanel.py:69
 msgid "No such job."
-msgstr ""
+msgstr "No existe esa tarea."
 
 #: cs/linguacopier/browser/copier.pt:73
 #: cs/linguacopier/browser/copier.py:266
@@ -227,7 +227,7 @@ msgstr "Sin traducir"
 
 #: cs/linguacopier/interfaces.py:37
 msgid "Number of items copied between commits in a background job."
-msgstr ""
+msgstr "Número de elementos copiados entre confirmaciones en una tarea en segundo plano."
 
 #: cs/linguacopier/browser/copier.pt:88
 msgid "Object"
@@ -240,27 +240,27 @@ msgstr "Parcial"
 
 #: cs/linguacopier/browser/jobs.pt:35
 msgid "Progress"
-msgstr ""
+msgstr "Progreso"
 
-#: cs/linguacopier/browser/controlpanel.py:112
+#: cs/linguacopier/browser/controlpanel.py:117
 msgid "Queued"
-msgstr ""
+msgstr "En cola"
 
 #: cs/linguacopier/browser/jobs.pt:36
 msgid "Requested by"
-msgstr ""
+msgstr "Solicitado por"
 
 #: cs/linguacopier/browser/jobs.pt:90
 msgid "Retry"
-msgstr ""
+msgstr "Reintentar"
 
 #: cs/linguacopier/browser/copier.py:125
 msgid "Run the copy directly, in the background, or let the copier decide based on the amount of work."
-msgstr ""
+msgstr "Ejecuta la copia directamente, en segundo plano, o deja que el copiador decida según la cantidad de trabajo."
 
-#: cs/linguacopier/browser/controlpanel.py:113
+#: cs/linguacopier/browser/controlpanel.py:118
 msgid "Running"
-msgstr ""
+msgstr "En ejecución"
 
 #: cs/linguacopier/browser/copier.py:105
 msgid "Select into which languages the translation will be made"
@@ -277,7 +277,7 @@ msgstr "No se han podido copiar algunos contenidos"
 
 #: cs/linguacopier/browser/jobs.pt:38
 msgid "Started"
-msgstr ""
+msgstr "Iniciado"
 
 #: cs/linguacopier/browser/copier.pt:90
 #: cs/linguacopier/browser/jobs.pt:32
@@ -290,19 +290,19 @@ msgstr "Idiomas de destino"
 
 #: cs/linguacopier/browser/jobs.pt:23
 msgid "The background worker is running."
-msgstr ""
+msgstr "El worker en segundo plano está en ejecución."
 
-#: cs/linguacopier/browser/controlpanel.py:85
+#: cs/linguacopier/browser/controlpanel.py:89
 msgid "The job cannot be deleted."
-msgstr ""
+msgstr "La tarea no se puede eliminar."
 
-#: cs/linguacopier/browser/controlpanel.py:80
+#: cs/linguacopier/browser/controlpanel.py:82
 msgid "The job cannot be retried."
-msgstr ""
+msgstr "La tarea no se puede reintentar."
 
 #: cs/linguacopier/browser/jobs.pt:110
 msgid "There are no copy jobs."
-msgstr ""
+msgstr "No hay tareas de copia."
 
 #: cs/linguacopier/browser/copier.pt:142
 msgid "There are no other languages to copy this content to."
@@ -340,11 +340,11 @@ msgstr "Actualizado"
 
 #: cs/linguacopier/interfaces.py:49
 msgid "User id the background worker runs as. Leave empty to run as the site owner."
-msgstr ""
+msgstr "Id de usuario con el que se ejecuta el worker en segundo plano. Déjalo vacío para ejecutarlo como el propietario del sitio."
 
 #: cs/linguacopier/interfaces.py:48
 msgid "Worker user"
-msgstr ""
+msgstr "Usuario del worker"
 
 #: cs/linguacopier/configure.zcml:27
 msgid "cs.linguacopier"
