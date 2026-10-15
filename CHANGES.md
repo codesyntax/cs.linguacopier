@@ -9,6 +9,35 @@
 
 <!-- towncrier release notes start -->
 
+## 2.3 (2026-10-15)
+
+
+### New features
+
+- Data grid field values are no longer copied verbatim: their free-text columns
+  are translated row by row (using the same free-text-only rule), while numbers,
+  choices and other non-text columns are copied as is. 
+
+
+### Bug fixes
+
+- Only free-text field values are now sent to the translation service. Controlled
+  tokens (vocabulary/taxonomy choices), numbers, booleans, dates and times, e-mail
+  addresses, URLs, passwords, relations, JSON, and file/image blobs are copied
+  verbatim, so missing translation calls are avoided and their values are never
+  sent to a translator. 
+- Ownership metadata fields (creators, contributors and rights) are copied verbatim
+  and no longer sent to the translation service. 
+- Related items are now remapped to the corresponding translated objects when
+  copying, for single relation choices as well as relation lists, and for relation
+  fields provided by a behavior and not just those on the object's own schema. An
+  unused, Archetypes-era helper that duplicated this for UID lists is removed. 
+
+
+### Internal
+
+- Update configuration files @plone 
+
 ## 2.2 (2026-10-08)
 
 

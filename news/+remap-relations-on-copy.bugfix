@@ -1,4 +1,0 @@
-Related items are now remapped to the corresponding translated objects when
-copying, for single relation choices as well as relation lists, and for relation
-fields provided by a behavior and not just those on the object's own schema. An
-unused, Archetypes-era helper that duplicated this for UID lists is removed.
