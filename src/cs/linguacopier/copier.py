@@ -21,11 +21,10 @@ from plone.dexterity.interfaces import IDexterityContent
 from plone.dexterity.utils import iterSchemata
 from plone.folder.interfaces import IExplicitOrdering
 from plone.i18n.normalizer.interfaces import IURLNormalizer
-from plone.uuid.interfaces import IUUID
 from Products.CMFCore.interfaces import IFolderish
 from z3c.relationfield import RelationValue
+from z3c.relationfield.schema import RelationChoice
 from z3c.relationfield.schema import RelationList
-from zope import schema
 from zope.component import getAdapters
 from zope.component import getUtility
 from zope.component import queryUtility
@@ -273,34 +272,6 @@ class ContentCopier:
             )
         )
 
-    def copy_related_fields(self, obj, target_languages):
-        # XXX: Where is this used?
-        try:
-            fields = schema.getFieldsInOrder(obj.getTypeInfo().lookupSchema())
-        except AttributeError as e:
-            log.info("Error: %s", "/".join(obj.getPhysicalPath()))
-            log.exception(e)
-
-        pcat = api.portal.get_tool("portal_catalog")
-        for key, value in fields:
-            value = value.get(obj)
-            if isinstance(value, list):
-                manager = ITranslationManager(obj)
-                for language in target_languages:
-                    translated_obj = manager.get_translation(language)
-                    uid_list = []
-
-                    for uid in value:
-                        element = pcat(UID=uid, Language=obj.Language())
-                        if element:
-                            manager = ITranslationManager(element[0].getObject())
-                            element_trans = manager.get_translation(language)
-                            if element_trans:
-                                uid_list.append(IUUID(element_trans))
-                    if uid_list:
-                        setattr(translated_obj, key, uid_list)
-                        translated_obj.reindexObject()
-
     def copy_other_things(self, original, translated):
         """Use an adapter lookup so developers can extend the copier"""
         adapters = getAdapters((original, translated), ITranslateThings)
@@ -330,8 +301,8 @@ class ContentCopier:
     def copy_fields_dexterity(self, source, target):
         # iterSchemata yields the object's own schema first, then a schema per
         # enabled behavior. Each field is seen once and its field object is
-        # available, which the language-independent check needs.
-        for index, field_schema in enumerate(iterSchemata(source)):
+        # available, so it can be classified and its relations remapped.
+        for field_schema in iterSchemata(source):
             source_adapter = field_schema(source, None)
             target_adapter = field_schema(target, None)
             if source_adapter is None or target_adapter is None:
@@ -347,40 +318,17 @@ class ContentCopier:
                     # relations) when a translation is created and keeps them in
                     # sync afterwards, so the copier leaves them alone.
                     continue
-                self.change_content(
-                    source_adapter,
-                    target_adapter,
-                    name,
-                    # Carry the field object so translation can classify it. A
-                    # behavior relation field is handed none of it, so only the
-                    # canonical schema remaps relations.
-                    (
-                        None
-                        if index and isinstance(schema_field, RelationList)
-                        else schema_field
-                    ),
-                )
+                self.change_content(source_adapter, target_adapter, name, schema_field)
 
     def change_content(self, source, target, key, field=None):
         source_value = getattr(source, key)
         value = getattr(source_value, "raw", source_value)
         if isinstance(field, RelationList):
-            intids = getUtility(IIntIds)
-            target_language = target.Language()
-            related_translations = []
-            for relation_field in value:
-                related_element = relation_field.to_object
-                if related_element:
-                    related_element_translation = ITranslationManager(
-                        related_element
-                    ).get_translation(target_language)
-                    if related_element_translation:
-                        try:
-                            to_id = intids.getId(related_element_translation)
-                        except KeyError:
-                            to_id = intids.register(related_element_translation)
-                        related_translations.append(RelationValue(to_id))
-            value = related_translations
+            value = self._translated_relations(value, target)
+        elif isinstance(field, RelationChoice) and value is not None:
+            translated_relation = self._translated_relation(value, target)
+            if translated_relation is not None:
+                value = translated_relation
         value = self._translated_value(value, field)
         if getattr(source_value, "raw", None) is not None:
             value = RichTextValue(value, "text/html", "text/x-html-safe")
@@ -394,6 +342,30 @@ class ContentCopier:
                 key,
                 "/".join(target.context.getPhysicalPath()),
             )
+
+    def _translated_relations(self, relations, target):
+        """Remap a relation list to each related object's translation."""
+        translated = []
+        for relation in relations:
+            new_relation = self._translated_relation(relation, target)
+            if new_relation is not None:
+                translated.append(new_relation)
+        return translated
+
+    def _translated_relation(self, relation, target):
+        """The relation to the related object's translation, or ``None``."""
+        related = relation.to_object if relation is not None else None
+        if related is None:
+            return None
+        translated = ITranslationManager(related).get_translation(target.Language())
+        if translated is None:
+            return None
+        intids = getUtility(IIntIds)
+        try:
+            to_id = intids.getId(translated)
+        except KeyError:
+            to_id = intids.register(translated)
+        return RelationValue(to_id)
 
     def _translated_value(self, value, field):
         """Translate the free-text parts of ``value`` for ``field``.

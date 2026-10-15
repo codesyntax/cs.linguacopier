@@ -38,6 +38,7 @@ from Products.statusmessages.interfaces import IStatusMessage
 from unittest import mock
 from z3c.form.interfaces import WidgetActionExecutionError
 from z3c.relationfield import RelationValue
+from z3c.relationfield.schema import RelationChoice
 from zope.component import getGlobalSiteManager
 from zope.component import getUtility
 from zope.interface import alsoProvides
@@ -448,6 +449,25 @@ class TestCopier(unittest.TestCase):
         related_es = ITranslationManager(related).get_translation("es")
         self.assertEqual(len(translated.relatedItems), 1)
         self.assertEqual(translated.relatedItems[0].to_object, related_es)
+
+    def test_change_content_relation_choice(self):
+        related = self._create_document(title="Related")
+        doc = self._create_document(title="Main")
+        ITranslationManager(related).add_translation("es")
+        translated = ITranslationManager(doc).add_translation("es")
+
+        intids = getUtility(IIntIds)
+        try:
+            related_id = intids.getId(related)
+        except KeyError:
+            related_id = intids.register(related)
+        doc.test_related = RelationValue(related_id)
+
+        field = RelationChoice(vocabulary="plone.app.vocabularies.Catalog")
+        ContentCopier(doc).change_content(doc, translated, "test_related", field)
+
+        related_es = ITranslationManager(related).get_translation("es")
+        self.assertEqual(translated.test_related.to_object, related_es)
 
     def test_language_independent_relation_is_left_to_pam(self):
         # relatedItems is marked language-independent in the test fixture.
