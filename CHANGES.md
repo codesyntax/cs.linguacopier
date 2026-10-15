@@ -9,6 +9,53 @@
 
 <!-- towncrier release notes start -->
 
+## 2.4.0a1 (2026-10-15)
+
+
+### New features
+
+- A ``linguacopier-worker`` console script now runs the background job runner from
+  the instance's ``zope.conf``, so it can be scheduled by command name without
+  knowing where the package is installed (drained by ``linguacopier-worker
+  /path/to/etc/zope.conf``, which suits containers and cron). 
+- Add a background mode to the content copier for large translated copies. A copy
+  request with ``mode=background`` on ``@copy-content-to`` is stored as a
+  persistent job and returns ``202 Accepted`` with the job, instead of running
+  inside the request. A separate worker command drains the queued jobs and records
+  each job's status, progress and errors; ``GET @copy-jobs`` lists the jobs and
+  ``GET @copy-jobs/<id>`` reports one. 
+- Background copy jobs are now processed in chunks, so a large copy commits its
+  progress progressively instead of in one transaction, and a job interrupted by a
+  worker restart resumes where it stopped. A job can be cancelled with ``DELETE
+  @copy-jobs/<id>``: a queued job stops at once, a running one at the next chunk
+  boundary. 
+- Site Setup gains two Content copier panels managed with ``cmf.ManagePortal``. A
+  settings form configures the copy mode, size threshold, chunk size, retries,
+  worker user and job retention. A jobs list shows each background copy job's
+  status, progress, timestamps and errors, with actions to cancel, retry or delete
+  it, and a warning when no worker is running. 
+- The background copy worker now prunes finished jobs according to the retention
+  settings on every run, and how to run the worker — manually, with cron or a
+  systemd timer — together with its heartbeat and retention settings, is
+  documented. 
+- The classic-UI ``@@copy-content-to`` form gains a copy-mode choice (automatic,
+  directly, or in the background), preselected from the site's default mode. A copy
+  sent to the background is queued and the editor is taken to the copy jobs panel;
+  the direct and automatic choices still render the copy report as before. 
+- The copier now chooses automatically whether to run a copy directly or in the
+  background. A copy with nothing to translate runs directly; a translated copy
+  runs directly when the estimated work (objects times target languages) fits the
+  configured limit and in the background otherwise. An explicit ``mode`` on the
+  request (``auto``, ``direct`` or ``background``) overrides the choice. 
+
+
+### Internal
+
+- Store background copy jobs — and their ordering and per-job records — in BTrees
+  instead of the monolithic persistent mapping and list objects, so editing the job
+  store rewrites only the affected buckets rather than re-serialising a whole
+  structure into the ZODB on every change. 
+
 ## 2.3 (2026-10-15)
 
 
