@@ -121,6 +121,14 @@ class TestTranslatableFieldPredicate(unittest.TestCase):
             with self.subTest(field=label):
                 self.assertFalse(is_translatable_field(field))
 
+    def test_metadata_fields_are_not_translatable(self):
+        from plone.app.dexterity.behaviors.metadata import IOwnership
+
+        # the ownership fieldset: metadata, not content
+        self.assertFalse(is_translatable_field(IOwnership["creators"]))
+        self.assertFalse(is_translatable_field(IOwnership["contributors"]))
+        self.assertFalse(is_translatable_field(IOwnership["rights"]))
+
 
 class TestDeriveIdFromTitle(unittest.TestCase):
     """Id derivation uses the target language's URL normalizer."""
@@ -979,6 +987,19 @@ class TestTranslateOnCopy(unittest.TestCase):
         self.assertEqual(rows[0]["label"], "[es] First")
         self.assertEqual(rows[0]["amount"], 3)
         self.assertIn(("First", "ca", "es"), self.service.calls)
+
+    def test_metadata_field_is_not_translated(self):
+        doc = self._document(title="Hello")
+        doc.rights = "All rights reserved"
+
+        ContentCopier(doc).copy(["es"], include_context=True, translate=True)
+
+        translated = ITranslationManager(doc).get_translation("es")
+        # the ownership metadata is copied verbatim, never sent to the service
+        self.assertEqual(translated.rights, "All rights reserved")
+        self.assertNotIn(
+            "All rights reserved", [call[0] for call in self.service.calls]
+        )
 
     def test_data_grid_is_translated_recursively(self):
         doc = self._document(title="Hello")

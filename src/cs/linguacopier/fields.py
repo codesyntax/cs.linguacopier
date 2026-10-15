@@ -39,6 +39,19 @@ except ImportError:  # pragma: no cover - optional dependency
     IDataGridRow = None
 
 
+#: Field names that carry metadata rather than content, so they are copied
+#: verbatim and never translated. These come from the default behaviors — above
+#: all the ownership fieldset (creators, contributors, rights) — and would only
+#: be sent by mistake because some of them are plain text.
+NON_TRANSLATABLE_FIELD_NAMES = frozenset(
+    {
+        "creators",
+        "contributors",
+        "rights",
+    }
+)
+
+
 #: Field interfaces whose values are never free text worth translating.
 NON_TRANSLATABLE_FIELD_INTERFACES = tuple(
     iface
@@ -63,6 +76,8 @@ NON_TRANSLATABLE_FIELD_INTERFACES = tuple(
 def is_translatable_field(field):
     """Whether values of ``field`` should be sent to the translation service."""
     if field is None:
+        return False
+    if getattr(field, "__name__", None) in NON_TRANSLATABLE_FIELD_NAMES:
         return False
     if IChoice.providedBy(field) or IChoice.providedBy(
         getattr(field, "value_type", None)
