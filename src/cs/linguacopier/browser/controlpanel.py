@@ -16,12 +16,12 @@ from cs.linguacopier.jobs import RUNNING
 from datetime import datetime
 from datetime import timedelta
 from datetime import timezone
+from plone import api
 from plone.app.registry.browser.controlpanel import ControlPanelFormWrapper
 from plone.app.registry.browser.controlpanel import RegistryEditForm
 from plone.z3cform import layout
 from Products.Five.browser import BrowserView
 from Products.Five.browser.pagetemplatefile import ViewPageTemplateFile
-from Products.statusmessages.interfaces import IStatusMessage
 from zope.component import getUtility
 
 #: How long without a heartbeat before the worker is considered stalled.
@@ -64,25 +64,30 @@ class JobsView(BrowserView):
 
     def _act(self, action, job_id):
         queue = getUtility(ICopyJobQueue)
-        messages = IStatusMessage(self.request)
         if action == "cancel":
             if queue.cancel(job_id) is None:
-                messages.addStatusMessage(_("No such job."), "error")
+                api.portal.show_message(_("No such job."), self.request, type="error")
             else:
-                messages.addStatusMessage(_("Job cancelled."), "info")
+                api.portal.show_message(_("Job cancelled."), self.request, type="info")
         elif action == "retry":
             job = queue.retry(job_id)
             if job is None:
-                messages.addStatusMessage(_("No such job."), "error")
+                api.portal.show_message(_("No such job."), self.request, type="error")
             elif job.status == QUEUED:
-                messages.addStatusMessage(_("Job queued again."), "info")
+                api.portal.show_message(
+                    _("Job queued again."), self.request, type="info"
+                )
             else:
-                messages.addStatusMessage(_("The job cannot be retried."), "warning")
+                api.portal.show_message(
+                    _("The job cannot be retried."), self.request, type="warning"
+                )
         elif action == "delete":
             if queue.delete(job_id):
-                messages.addStatusMessage(_("Job deleted."), "info")
+                api.portal.show_message(_("Job deleted."), self.request, type="info")
             else:
-                messages.addStatusMessage(_("The job cannot be deleted."), "error")
+                api.portal.show_message(
+                    _("The job cannot be deleted."), self.request, type="error"
+                )
 
     @property
     def jobs(self):
