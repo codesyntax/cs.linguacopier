@@ -6,7 +6,7 @@
 >
   <configlet action_id="linguacopier-settings"
              appId="cs.linguacopier"
-             category="plone-content"
+             category="Products"
              condition_expr=""
              icon_expr="string:translate"
              title="Content copier"
@@ -18,7 +18,7 @@
   </configlet>
   <configlet action_id="linguacopier-jobs"
              appId="cs.linguacopier"
-             category="plone-content"
+             category="Products"
              condition_expr=""
              icon_expr="string:list-task"
              title="Copy jobs"
