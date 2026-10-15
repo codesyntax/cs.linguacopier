@@ -7,6 +7,8 @@ the browser layer.
 
 from Acquisition import aq_parent
 from cs.linguacopier import translation
+from cs.linguacopier.fields import is_datagrid_field
+from cs.linguacopier.fields import is_translatable_field
 from cs.linguacopier.interfaces import ITranslateThings
 from dataclasses import dataclass
 from dataclasses import field
@@ -22,8 +24,6 @@ from plone.i18n.normalizer.interfaces import IURLNormalizer
 from plone.uuid.interfaces import IUUID
 from Products.CMFCore.interfaces import IFolderish
 from z3c.relationfield import RelationValue
-from z3c.relationfield.interfaces import IRelationChoice
-from z3c.relationfield.interfaces import IRelationList
 from z3c.relationfield.schema import RelationList
 from zope import schema
 from zope.component import getAdapters
@@ -32,34 +32,6 @@ from zope.component import queryUtility
 from zope.container.interfaces import INameChooser
 from zope.intid.interfaces import IIntIds
 from zope.schema import getFieldsInOrder
-from zope.schema.interfaces import IBool
-from zope.schema.interfaces import IChoice
-from zope.schema.interfaces import IDate
-from zope.schema.interfaces import IDatetime
-from zope.schema.interfaces import INumber
-from zope.schema.interfaces import IPassword
-from zope.schema.interfaces import ITime
-from zope.schema.interfaces import IURI
-
-try:
-    from plone.namedfile.interfaces import INamedField
-except ImportError:  # pragma: no cover - optional dependency
-    INamedField = None
-
-try:
-    from plone.schema import IEmail
-except ImportError:  # pragma: no cover - optional dependency
-    IEmail = None
-
-try:
-    from plone.schema import IJSONField
-except ImportError:  # pragma: no cover - optional dependency
-    IJSONField = None
-
-try:
-    from collective.z3cform.datagridfield.interfaces import IRow as IDataGridRow
-except ImportError:  # pragma: no cover - optional dependency
-    IDataGridRow = None
 
 import transaction
 
@@ -79,57 +51,6 @@ SKIPPED = "skipped"
 TRANSLATED = "translated"
 PARTIAL = "partial"
 NOT_TRANSLATED = "not_translated"
-
-
-#: Field interfaces whose values are never free text worth translating.
-NON_TRANSLATABLE_FIELD_INTERFACES = tuple(
-    iface
-    for iface in (
-        IBool,
-        IDate,
-        IDatetime,
-        INumber,
-        IPassword,
-        ITime,
-        IURI,
-        IRelationChoice,
-        IRelationList,
-        INamedField,
-        IEmail,
-        IJSONField,
-    )
-    if iface is not None
-)
-
-
-def is_translatable_field(field):
-    """Whether values of ``field`` should be sent to the translation service.
-
-    Only free text is worth translating. Controlled tokens (vocabulary/taxonomy
-    choices), numbers, booleans, dates and times, e-mail addresses, URLs,
-    passwords, relations, JSON, and file/image blobs are copied verbatim and are
-    never sent to the service, to avoid pointless work and invalid values.
-    """
-    if field is None:
-        return False
-    if IChoice.providedBy(field) or IChoice.providedBy(
-        getattr(field, "value_type", None)
-    ):
-        return False
-    return not any(
-        iface.providedBy(field) for iface in NON_TRANSLATABLE_FIELD_INTERFACES
-    )
-
-
-def is_datagrid_field(field):
-    """Whether ``field`` is a data grid — a list of structured rows.
-
-    A data grid is not free text, but the free-text values *inside* its rows are
-    worth translating, so it is handled specially rather than skipped.
-    """
-    if field is None or IDataGridRow is None:
-        return False
-    return IDataGridRow.providedBy(getattr(field, "value_type", None))
 
 
 def derive_id_from_title(obj, language):
@@ -430,20 +351,17 @@ class ContentCopier:
                     source_adapter,
                     target_adapter,
                     name,
-                    # The field object is needed downstream for the canonical
-                    # schema (relation handling) and for data grids on any
-                    # schema (their inner text values are translated).
+                    # Carry the field object so translation can classify it. A
+                    # behavior relation field is handed none of it, so only the
+                    # canonical schema remaps relations.
                     (
-                        schema_field
-                        if index == 0 or is_datagrid_field(schema_field)
-                        else None
+                        None
+                        if index and isinstance(schema_field, RelationList)
+                        else schema_field
                     ),
-                    # Only free text is translated; everything else (tokens,
-                    # numbers, dates, relations, blobs, ...) is copied verbatim.
-                    translatable=is_translatable_field(schema_field),
                 )
 
-    def change_content(self, source, target, key, field=None, translatable=True):
+    def change_content(self, source, target, key, field=None):
         source_value = getattr(source, key)
         value = getattr(source_value, "raw", source_value)
         if isinstance(field, RelationList):
@@ -463,17 +381,7 @@ class ContentCopier:
                             to_id = intids.register(related_element_translation)
                         related_translations.append(RelationValue(to_id))
             value = related_translations
-        if self.translate and translatable and is_datagrid_field(field):
-            # A data grid is a list of rows; translate the free-text columns.
-            value = self._translate_datagrid(value, field)
-        elif self.translate and translatable and isinstance(value, str) and value:
-            # Scalars and rich text raw HTML are both plain strings here; the
-            # original value is kept when the service returns nothing.
-            self._eligible_fields += 1
-            translated_value = self._translate_value(value)
-            if translated_value is not None:
-                self._translated_fields += 1
-                value = translated_value
+        value = self._translated_value(value, field)
         if getattr(source_value, "raw", None) is not None:
             value = RichTextValue(value, "text/html", "text/x-html-safe")
 
@@ -487,38 +395,50 @@ class ContentCopier:
                 "/".join(target.context.getPhysicalPath()),
             )
 
+    def _translated_value(self, value, field):
+        """Translate the free-text parts of ``value`` for ``field``.
+
+        Only free text is translated. A data grid recurses into its rows, so the
+        same rule handles every cell — and a nested data grid — at any depth.
+        """
+        if not self.translate or field is None:
+            return value
+        if is_datagrid_field(field):
+            return self._translate_rows(value, field)
+        if is_translatable_field(field) and isinstance(value, str) and value:
+            return self._translate_text(value)
+        return value
+
+    def _translate_text(self, value):
+        """Translate free text, counting it for the translation outcome."""
+        self._eligible_fields += 1
+        translated = self._translate_value(value)
+        if translated is None:
+            return value
+        self._translated_fields += 1
+        return translated
+
+    def _translate_rows(self, rows, field):
+        """Translate the free-text cells of a data grid's rows."""
+        row_schema = getattr(field.value_type, "schema", None)
+        if row_schema is None:
+            return rows
+        translated_rows = []
+        for row in rows or []:
+            translated_row = dict(row)
+            for name, column in getFieldsInOrder(row_schema):
+                if name in translated_row:
+                    translated_row[name] = self._translated_value(
+                        translated_row[name], column
+                    )
+            translated_rows.append(translated_row)
+        return translated_rows
+
     def _translate_value(self, value):
         """Translate a value; return ``None`` when nothing translated it."""
         return translation.translate(
             value, self._source_language, self._target_language
         )
-
-    def _translate_datagrid(self, rows, field):
-        """Translate the free-text columns of a data grid's rows."""
-        row_schema = getattr(field.value_type, "schema", None)
-        if row_schema is None:
-            return rows
-        columns = [
-            name
-            for name, column in getFieldsInOrder(row_schema)
-            if is_translatable_field(column)
-        ]
-        if not columns:
-            return rows
-        translated_rows = []
-        for row in rows or []:
-            translated_row = dict(row)
-            for name in columns:
-                cell = translated_row.get(name)
-                if not isinstance(cell, str) or not cell:
-                    continue
-                self._eligible_fields += 1
-                translated_cell = self._translate_value(cell)
-                if translated_cell is not None:
-                    self._translated_fields += 1
-                    translated_row[name] = translated_cell
-            translated_rows.append(translated_row)
-        return translated_rows
 
     def _translation_outcome(self):
         """Three-valued outcome of translating one copied object."""

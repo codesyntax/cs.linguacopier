@@ -10,10 +10,10 @@ from cs.linguacopier.copier import CopyError
 from cs.linguacopier.copier import CopyReport
 from cs.linguacopier.copier import CopyResult
 from cs.linguacopier.copier import derive_id_from_title
-from cs.linguacopier.copier import is_translatable_field
 from cs.linguacopier.copier import NOT_TRANSLATED
 from cs.linguacopier.copier import PARTIAL
 from cs.linguacopier.copier import TRANSLATED
+from cs.linguacopier.fields import is_translatable_field
 from cs.linguacopier.interfaces import ITranslateThings
 from cs.linguacopier.testing import CS_LINGUACOPIER_FUNCTIONAL_TESTING
 from cs.linguacopier.testing import CS_LINGUACOPIER_INTEGRATION_TESTING
@@ -77,6 +77,7 @@ class TestTranslatableFieldPredicate(unittest.TestCase):
         self.assertFalse(is_translatable_field(None))
 
     def test_non_text_fields_are_not_translatable(self):
+        from plone.namedfile.field import NamedBlobFile
         from plone.namedfile.field import NamedBlobImage
         from plone.schema import Email
         from plone.schema import JSONField
@@ -89,6 +90,7 @@ class TestTranslatableFieldPredicate(unittest.TestCase):
         from zope.schema import Float
         from zope.schema import Int
         from zope.schema import Password
+        from zope.schema import Time
         from zope.schema import URI
 
         not_translatable = {
@@ -100,6 +102,7 @@ class TestTranslatableFieldPredicate(unittest.TestCase):
             "decimal": Decimal(),
             "date": Date(),
             "datetime": Datetime(),
+            "time": Time(),
             "email": Email(),
             "uri": URI(),
             "password": Password(),
@@ -111,6 +114,7 @@ class TestTranslatableFieldPredicate(unittest.TestCase):
                 value_type=RelationChoice(vocabulary="plone.app.vocabularies.Catalog")
             ),
             "blob image": NamedBlobImage(),
+            "blob file": NamedBlobFile(),
         }
         for label, field in not_translatable.items():
             with self.subTest(field=label):
@@ -535,7 +539,7 @@ class TestCopier(unittest.TestCase):
     def test_copy_records_a_field_failure_and_rolls_back(self):
         doc = self._create_document(title="Hello")
 
-        def explode(self, source, target, key, field=None, translatable=True):
+        def explode(self, source, target, key, field=None):
             raise ValueError(f"cannot copy {key}")
 
         with mock.patch.object(ContentCopier, "change_content", explode):
@@ -896,9 +900,9 @@ class TestTranslateOnCopy(unittest.TestCase):
         copied_keys = []
         original = ContentCopier.change_content
 
-        def record(self, source, target, key, schema_field=None, translatable=True):
+        def record(self, source, target, key, schema_field=None):
             copied_keys.append(key)
-            return original(self, source, target, key, schema_field, translatable)
+            return original(self, source, target, key, schema_field)
 
         try:
             with mock.patch.object(ContentCopier, "change_content", record):
@@ -955,6 +959,20 @@ class TestTranslateOnCopy(unittest.TestCase):
         self.assertEqual(rows[0]["label"], "[es] First")
         self.assertEqual(rows[0]["amount"], 3)
         self.assertIn(("First", "ca", "es"), self.service.calls)
+
+    def test_data_grid_is_translated_recursively(self):
+        doc = self._document(title="Hello")
+        doc.test_rows = [
+            {"label": "First", "amount": 3, "sub_rows": [{"note": "Deep"}]}
+        ]
+
+        ContentCopier(doc).copy(["es"], include_context=True, translate=True)
+
+        row = ITranslationManager(doc).get_translation("es").test_rows[0]
+        self.assertEqual(row["label"], "[es] First")
+        self.assertEqual(row["amount"], 3)
+        # a nested data grid is translated by the same rule
+        self.assertEqual(row["sub_rows"][0]["note"], "[es] Deep")
 
     def test_translated_id_is_derived_from_the_translated_title(self):
         doc = self._document(title="Hello")

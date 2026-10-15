@@ -55,11 +55,22 @@ class TestCategorized:
         self.context.test_topics = value
 
 
+class ITestSubRow(Interface):
+    """A row schema for a data grid nested inside another one."""
+
+    note = schema.TextLine(title="Note", required=False)
+
+
 class ITestDataGridRow(Interface):
-    """A row schema for a test data grid: a text and a non-text column."""
+    """A row schema for a test data grid: text, non-text and a nested grid."""
 
     label = schema.TextLine(title="Label", required=False)
     amount = schema.Int(title="Amount", required=False)
+    sub_rows = schema.List(
+        title="Sub rows",
+        value_type=DictRow(schema=ITestSubRow),
+        required=False,
+    )
 
 
 class ITestDataGrid(Interface):
