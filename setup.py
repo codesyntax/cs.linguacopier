@@ -41,6 +41,7 @@ setup(
     install_requires=[
         "plone.api",
         "plone.app.multilingual",
+        "plone.app.registry",
         "plone.app.textfield",
         "plone.app.uuid",
         "plone.app.z3cform",
@@ -54,6 +55,7 @@ setup(
         "plone.supermodel",
         "plone.uuid",
         "Products.GenericSetup>=1.8.2",
+        "Products.statusmessages",
         "z3c.form",
         "z3c.relationfield",
         "zope.intid",
@@ -71,7 +73,6 @@ setup(
             "plone.namedfile",
             "plone.restapi",
             "plone.testing",
-            "Products.statusmessages",
             "requests",
         ],
     },
