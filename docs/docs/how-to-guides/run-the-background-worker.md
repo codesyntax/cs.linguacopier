@@ -25,14 +25,25 @@ configure.
 
 ## Run the worker once
 
-Run the worker once for every Plone site in the instance:
+The package ships a `linguacopier-worker` console script. Point it at your
+instance's `zope.conf` and it boots the application and drains every Plone
+site's queue:
+
+```bash
+linguacopier-worker /path/to/instance/etc/zope.conf
+```
+
+It processes the queued jobs, oldest first, copying each in chunks and
+committing as it goes. Running it by hand is enough to work through a backlog.
+Because the script is installed next to the environment's other commands, you
+never have to know where the package itself lives.
+
+Where the instance scripts are available, you can instead run the module
+through `bin/instance run`:
 
 ```bash
 bin/instance run src/cs/linguacopier/worker.py
 ```
-
-The command drains the queued jobs, oldest first, copying each in chunks and
-committing as it goes. Running it by hand is enough to work through a backlog.
 
 ## Schedule the worker
 
@@ -41,7 +52,7 @@ Run the command on a schedule so queued jobs are picked up automatically.
 ### cron
 
 ```cron
-*/5 * * * * cd /path/to/instance && bin/instance run src/cs/linguacopier/worker.py
+*/5 * * * * /path/to/instance/bin/linguacopier-worker /path/to/instance/etc/zope.conf
 ```
 
 ### systemd
@@ -53,8 +64,7 @@ Description=cs.linguacopier background copy worker
 
 [Service]
 Type=oneshot
-WorkingDirectory=/path/to/instance
-ExecStart=/path/to/instance/bin/instance run src/cs/linguacopier/worker.py
+ExecStart=/path/to/instance/bin/linguacopier-worker /path/to/instance/etc/zope.conf
 ```
 
 ```ini
@@ -74,6 +84,15 @@ Enable it with:
 
 ```bash
 systemctl enable --now linguacopier-worker.timer
+```
+
+### Docker
+
+The console script sits in the environment's `bin` directory, so a container can
+schedule it by name without knowing the package path:
+
+```cron
+*/5 * * * * docker exec $CONTAINER /app/bin/linguacopier-worker /app/etc/zeo.conf > /proc/1/fd/1 2>&1
 ```
 
 ## Watch progress and health
