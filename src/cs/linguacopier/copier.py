@@ -22,6 +22,8 @@ from plone.i18n.normalizer.interfaces import IURLNormalizer
 from plone.uuid.interfaces import IUUID
 from Products.CMFCore.interfaces import IFolderish
 from z3c.relationfield import RelationValue
+from z3c.relationfield.interfaces import IRelationChoice
+from z3c.relationfield.interfaces import IRelationList
 from z3c.relationfield.schema import RelationList
 from zope import schema
 from zope.component import getAdapters
@@ -30,7 +32,29 @@ from zope.component import queryUtility
 from zope.container.interfaces import INameChooser
 from zope.intid.interfaces import IIntIds
 from zope.schema import getFieldsInOrder
+from zope.schema.interfaces import IBool
 from zope.schema.interfaces import IChoice
+from zope.schema.interfaces import IDate
+from zope.schema.interfaces import IDatetime
+from zope.schema.interfaces import INumber
+from zope.schema.interfaces import IPassword
+from zope.schema.interfaces import ITime
+from zope.schema.interfaces import IURI
+
+try:
+    from plone.namedfile.interfaces import INamedField
+except ImportError:  # pragma: no cover - optional dependency
+    INamedField = None
+
+try:
+    from plone.schema import IEmail
+except ImportError:  # pragma: no cover - optional dependency
+    IEmail = None
+
+try:
+    from plone.schema import IJSONField
+except ImportError:  # pragma: no cover - optional dependency
+    IJSONField = None
 
 import transaction
 
@@ -52,18 +76,44 @@ PARTIAL = "partial"
 NOT_TRANSLATED = "not_translated"
 
 
-def is_token_valued(field):
-    """Whether a schema field stores a controlled token, not free text.
+#: Field interfaces whose values are never free text worth translating.
+NON_TRANSLATABLE_FIELD_INTERFACES = tuple(
+    iface
+    for iface in (
+        IBool,
+        IDate,
+        IDatetime,
+        INumber,
+        IPassword,
+        ITime,
+        IURI,
+        IRelationChoice,
+        IRelationList,
+        INamedField,
+        IEmail,
+        IJSONField,
+    )
+    if iface is not None
+)
 
-    A ``Choice`` field, or a collection whose ``value_type`` is a ``Choice``,
-    holds a vocabulary/taxonomy token; translating it would store an invalid
-    value that can break rendering. This is the same test ``plone.restapi`` uses
-    to recognise enumerable fields.
+
+def is_translatable_field(field):
+    """Whether values of ``field`` should be sent to the translation service.
+
+    Only free text is worth translating. Controlled tokens (vocabulary/taxonomy
+    choices), numbers, booleans, dates and times, e-mail addresses, URLs,
+    passwords, relations, JSON, and file/image blobs are copied verbatim and are
+    never sent to the service, to avoid pointless work and invalid values.
     """
-    if IChoice.providedBy(field):
-        return True
-    value_type = getattr(field, "value_type", None)
-    return value_type is not None and IChoice.providedBy(value_type)
+    if field is None:
+        return False
+    if IChoice.providedBy(field) or IChoice.providedBy(
+        getattr(field, "value_type", None)
+    ):
+        return False
+    return not any(
+        iface.providedBy(field) for iface in NON_TRANSLATABLE_FIELD_INTERFACES
+    )
 
 
 def derive_id_from_title(obj, language):
@@ -365,10 +415,9 @@ class ContentCopier:
                     target_adapter,
                     name,
                     None if index else schema_field,
-                    # Vocabulary/taxonomy/choice fields hold tokens, not free
-                    # text; copy them verbatim so the copy never stores an
-                    # invalid value.
-                    translatable=not is_token_valued(schema_field),
+                    # Only free text is translated; everything else (tokens,
+                    # numbers, dates, relations, blobs, ...) is copied verbatim.
+                    translatable=is_translatable_field(schema_field),
                 )
 
     def change_content(self, source, target, key, field=None, translatable=True):

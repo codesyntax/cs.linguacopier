@@ -10,7 +10,7 @@ from cs.linguacopier.copier import CopyError
 from cs.linguacopier.copier import CopyReport
 from cs.linguacopier.copier import CopyResult
 from cs.linguacopier.copier import derive_id_from_title
-from cs.linguacopier.copier import is_token_valued
+from cs.linguacopier.copier import is_translatable_field
 from cs.linguacopier.copier import NOT_TRANSLATED
 from cs.linguacopier.copier import PARTIAL
 from cs.linguacopier.copier import TRANSLATED
@@ -63,16 +63,58 @@ class TestHelpers(unittest.TestCase):
         self.assertTrue(ICopyContentToLanguage["target_languages"].required)
 
 
-class TestTokenValuedPredicate(unittest.TestCase):
-    """The field predicate that keeps controlled tokens out of translation."""
+class TestTranslatableFieldPredicate(unittest.TestCase):
+    """Only free-text fields are sent to the translation service."""
 
-    def test_choice_fields_are_token_valued(self):
-        self.assertTrue(is_token_valued(ITestCategorized["test_category"]))
-        self.assertTrue(is_token_valued(ITestCategorized["test_topics"]))
+    def test_free_text_fields_are_translatable(self):
+        from plone.app.contenttypes.behaviors.richtext import IRichTextBehavior
 
-    def test_free_text_fields_are_not_token_valued(self):
-        self.assertFalse(is_token_valued(IBasic["title"]))
-        self.assertFalse(is_token_valued(IBasic["description"]))
+        self.assertTrue(is_translatable_field(IBasic["title"]))
+        self.assertTrue(is_translatable_field(IBasic["description"]))
+        self.assertTrue(is_translatable_field(IRichTextBehavior["text"]))
+
+    def test_none_is_not_translatable(self):
+        self.assertFalse(is_translatable_field(None))
+
+    def test_non_text_fields_are_not_translatable(self):
+        from plone.namedfile.field import NamedBlobImage
+        from plone.schema import Email
+        from plone.schema import JSONField
+        from z3c.relationfield.schema import RelationChoice
+        from z3c.relationfield.schema import RelationList
+        from zope.schema import Bool
+        from zope.schema import Date
+        from zope.schema import Datetime
+        from zope.schema import Decimal
+        from zope.schema import Float
+        from zope.schema import Int
+        from zope.schema import Password
+        from zope.schema import URI
+
+        not_translatable = {
+            "choice": ITestCategorized["test_category"],
+            "choice list": ITestCategorized["test_topics"],
+            "bool": Bool(),
+            "int": Int(),
+            "float": Float(),
+            "decimal": Decimal(),
+            "date": Date(),
+            "datetime": Datetime(),
+            "email": Email(),
+            "uri": URI(),
+            "password": Password(),
+            "json": JSONField(),
+            "relation choice": RelationChoice(
+                vocabulary="plone.app.vocabularies.Catalog"
+            ),
+            "relation list": RelationList(
+                value_type=RelationChoice(vocabulary="plone.app.vocabularies.Catalog")
+            ),
+            "blob image": NamedBlobImage(),
+        }
+        for label, field in not_translatable.items():
+            with self.subTest(field=label):
+                self.assertFalse(is_translatable_field(field))
 
 
 class TestDeriveIdFromTitle(unittest.TestCase):
