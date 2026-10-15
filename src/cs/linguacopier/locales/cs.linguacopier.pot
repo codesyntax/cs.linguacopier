@@ -4,7 +4,7 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
-"POT-Creation-Date: 2026-10-15 08:19+0000\n"
+"POT-Creation-Date: 2026-10-15 08:44+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI +ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -33,7 +33,7 @@ msgstr ""
 msgid "Cancel"
 msgstr ""
 
-#: cs/linguacopier/browser/controlpanel.py:116
+#: cs/linguacopier/browser/controlpanel.py:121
 msgid "Cancelled"
 msgstr ""
 
@@ -105,7 +105,7 @@ msgstr ""
 msgid "Directly"
 msgstr ""
 
-#: cs/linguacopier/browser/controlpanel.py:114
+#: cs/linguacopier/browser/controlpanel.py:119
 msgid "Done"
 msgstr ""
 
@@ -117,7 +117,7 @@ msgstr ""
 msgid "Export as CSV"
 msgstr ""
 
-#: cs/linguacopier/browser/controlpanel.py:115
+#: cs/linguacopier/browser/controlpanel.py:120
 #: cs/linguacopier/browser/copier.pt:50
 #: cs/linguacopier/browser/copier.py:259
 msgid "Failed"
@@ -179,11 +179,11 @@ msgstr ""
 msgid "Installs the cs.linguacopier add-on."
 msgstr ""
 
-#: cs/linguacopier/browser/controlpanel.py:72
+#: cs/linguacopier/browser/controlpanel.py:71
 msgid "Job cancelled."
 msgstr ""
 
-#: cs/linguacopier/browser/controlpanel.py:83
+#: cs/linguacopier/browser/controlpanel.py:86
 msgid "Job deleted."
 msgstr ""
 
@@ -215,7 +215,7 @@ msgstr ""
 msgid "No background worker has run recently. Queued jobs will not progress until the worker is scheduled."
 msgstr ""
 
-#: cs/linguacopier/browser/controlpanel.py:70
+#: cs/linguacopier/browser/controlpanel.py:69
 msgid "No such job."
 msgstr ""
 
@@ -241,7 +241,7 @@ msgstr ""
 msgid "Progress"
 msgstr ""
 
-#: cs/linguacopier/browser/controlpanel.py:112
+#: cs/linguacopier/browser/controlpanel.py:117
 msgid "Queued"
 msgstr ""
 
@@ -257,7 +257,7 @@ msgstr ""
 msgid "Run the copy directly, in the background, or let the copier decide based on the amount of work."
 msgstr ""
 
-#: cs/linguacopier/browser/controlpanel.py:113
+#: cs/linguacopier/browser/controlpanel.py:118
 msgid "Running"
 msgstr ""
 
@@ -291,11 +291,11 @@ msgstr ""
 msgid "The background worker is running."
 msgstr ""
 
-#: cs/linguacopier/browser/controlpanel.py:85
+#: cs/linguacopier/browser/controlpanel.py:89
 msgid "The job cannot be deleted."
 msgstr ""
 
-#: cs/linguacopier/browser/controlpanel.py:80
+#: cs/linguacopier/browser/controlpanel.py:82
 msgid "The job cannot be retried."
 msgstr ""
 

@@ -4,7 +4,7 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
-"POT-Creation-Date: 2026-10-15 08:19+0000\n"
+"POT-Creation-Date: 2026-10-15 08:44+0000\n"
 "PO-Revision-Date: 2026-10-02 11:28+0200\n"
 "Last-Translator: Mikel Larreategi <mlarreategi@codesyntax.com>\n"
 "Language-Team: Basque <translation-team-eu@googlegroups.com>\n"
@@ -20,32 +20,32 @@ msgstr ""
 
 #: cs/linguacopier/browser/jobs.pt:41
 msgid "Actions"
-msgstr ""
+msgstr "Ekintzak"
 
 #: cs/linguacopier/browser/vocabularies.py:16
 msgid "Automatic"
-msgstr ""
+msgstr "Automatikoa"
 
 #: cs/linguacopier/interfaces.py:36
 msgid "Background chunk size"
-msgstr ""
+msgstr "Atzeko planoko blokearen tamaina"
 
 #: cs/linguacopier/browser/jobs.pt:83
 msgid "Cancel"
-msgstr ""
+msgstr "Utzi"
 
-#: cs/linguacopier/browser/controlpanel.py:116
+#: cs/linguacopier/browser/controlpanel.py:121
 msgid "Cancelled"
-msgstr ""
+msgstr "Utzita"
 
 #: cs/linguacopier/browser/controlpanel.py:35
 msgid "Configure the content copier and how its background jobs are run."
-msgstr ""
+msgstr "Konfiguratu eduki-kopiatzailea eta nola exekutatzen diren bere atzeko planoko lanak."
 
 #: cs/linguacopier/browser/controlpanel.py:34
 #: cs/linguacopier/profiles/default/controlpanel.xml
 msgid "Content copier"
-msgstr ""
+msgstr "Eduki-kopiatzailea"
 
 #: cs/linguacopier/browser/copier.py:219
 msgid "Contents copied successfully"
@@ -53,7 +53,7 @@ msgstr "Edukiak ondo kopiatu dira"
 
 #: cs/linguacopier/browser/jobs.pt:33
 msgid "Context"
-msgstr ""
+msgstr "Testuingurua"
 
 #: cs/linguacopier/browser/copier.py:164
 msgid "Copy content"
@@ -61,16 +61,16 @@ msgstr "Kopiatu edukia"
 
 #: cs/linguacopier/browser/copier.py:199
 msgid "Copy job started in the background."
-msgstr ""
+msgstr "Kopia-lana atzeko planoan hasi da."
 
 #: cs/linguacopier/browser/jobs.pt:10
 #: cs/linguacopier/profiles/default/controlpanel.xml
 msgid "Copy jobs"
-msgstr ""
+msgstr "Kopia-lanak"
 
 #: cs/linguacopier/browser/copier.py:124
 msgid "Copy mode"
-msgstr ""
+msgstr "Kopia modua"
 
 #: cs/linguacopier/browser/copier.pt:32
 msgid "Copy report"
@@ -88,11 +88,11 @@ msgstr "Sortuta"
 
 #: cs/linguacopier/interfaces.py:17
 msgid "Default copy mode"
-msgstr ""
+msgstr "Kopia modu lehenetsia"
 
 #: cs/linguacopier/browser/jobs.pt:97
 msgid "Delete"
-msgstr ""
+msgstr "Ezabatu"
 
 #: cs/linguacopier/browser/copier.pt:94
 msgid "Detail"
@@ -100,25 +100,25 @@ msgstr "Xehetasuna"
 
 #: cs/linguacopier/interfaces.py:27
 msgid "Direct copy size limit"
-msgstr ""
+msgstr "Zuzeneko kopiaren tamaina-muga"
 
 #: cs/linguacopier/browser/vocabularies.py:17
 msgid "Directly"
-msgstr ""
+msgstr "Zuzenean"
 
-#: cs/linguacopier/browser/controlpanel.py:114
+#: cs/linguacopier/browser/controlpanel.py:119
 msgid "Done"
-msgstr ""
+msgstr "Eginda"
 
 #: cs/linguacopier/browser/jobs.pt:40
 msgid "Errors"
-msgstr ""
+msgstr "Erroreak"
 
 #: cs/linguacopier/browser/copier.pt:39
 msgid "Export as CSV"
 msgstr "Esportatu CSV gisa"
 
-#: cs/linguacopier/browser/controlpanel.py:115
+#: cs/linguacopier/browser/controlpanel.py:120
 #: cs/linguacopier/browser/copier.pt:50
 #: cs/linguacopier/browser/copier.py:259
 msgid "Failed"
@@ -126,15 +126,15 @@ msgstr "Huts eginda"
 
 #: cs/linguacopier/browser/jobs.pt:39
 msgid "Finished"
-msgstr ""
+msgstr "Amaituta"
 
 #: cs/linguacopier/interfaces.py:65
 msgid "Finished jobs beyond this many are pruned by the worker."
-msgstr ""
+msgstr "Zenbaki hau gainditzen duten amaierako lanak langileak ezabatzen ditu."
 
 #: cs/linguacopier/interfaces.py:59
 msgid "Finished jobs older than this are pruned by the worker."
-msgstr ""
+msgstr "Adin hau baino zaharragoak diren amaierako lanak langileak ezabatzen ditu."
 
 #: cs/linguacopier/browser/copier.pt:117
 msgid "Go back to the form"
@@ -142,15 +142,15 @@ msgstr "Itzuli formulariora"
 
 #: cs/linguacopier/interfaces.py:18
 msgid "How a copy without an explicit mode is run: automatically, directly, or in the background."
-msgstr ""
+msgstr "Modu espliziturik gabeko kopia nola exekutatzen den: automatikoki, zuzenean edo atzeko planoan."
 
 #: cs/linguacopier/interfaces.py:43
 msgid "How many times a background job retries a transient failure."
-msgstr ""
+msgstr "Atzeko planoko lan batek behin-behineko hutsegite bat zenbat aldiz birritentatzen duen."
 
 #: cs/linguacopier/browser/jobs.pt:31
 msgid "Id"
-msgstr ""
+msgstr "Id"
 
 #: cs/linguacopier/browser/copier.py:96
 msgid "If selected, all the subobjects of this object will also be translated"
@@ -162,11 +162,11 @@ msgstr "Hautatzen bada, testuinguru-elementua itzuliko da"
 
 #: cs/linguacopier/interfaces.py:28
 msgid "In automatic mode, run the copy directly when the estimated work (objects times target languages) is at or below this number."
-msgstr ""
+msgstr "Modu automatikoan, exekutatu kopia zuzenean zenbatetsitako lana (objektuak bider helburuko hizkuntzak) zenbaki hau bezainbestekoa edo txikiagoa denean."
 
 #: cs/linguacopier/browser/vocabularies.py:18
 msgid "In the background"
-msgstr ""
+msgstr "Atzeko planoan"
 
 #: cs/linguacopier/browser/copier.py:88
 msgid "Include context element?"
@@ -180,21 +180,21 @@ msgstr "Edukia sartu?"
 msgid "Installs the cs.linguacopier add-on."
 msgstr "cs.linguacopier gehigarria instalatzen du."
 
-#: cs/linguacopier/browser/controlpanel.py:72
+#: cs/linguacopier/browser/controlpanel.py:71
 msgid "Job cancelled."
-msgstr ""
+msgstr "Lana utzi da."
 
-#: cs/linguacopier/browser/controlpanel.py:83
+#: cs/linguacopier/browser/controlpanel.py:86
 msgid "Job deleted."
-msgstr ""
+msgstr "Lana ezabatu da."
 
 #: cs/linguacopier/browser/controlpanel.py:78
 msgid "Job queued again."
-msgstr ""
+msgstr "Lana berriro ilaran jarri da."
 
 #: cs/linguacopier/interfaces.py:58
 msgid "Job retention (days)"
-msgstr ""
+msgstr "Lanen atxikipena (egunak)"
 
 #: cs/linguacopier/browser/copier.pt:89
 msgid "Language"
@@ -202,23 +202,23 @@ msgstr "Hizkuntza"
 
 #: cs/linguacopier/browser/jobs.pt:34
 msgid "Languages"
-msgstr ""
+msgstr "Hizkuntzak"
 
 #: cs/linguacopier/interfaces.py:42
 msgid "Maximum retries"
-msgstr ""
+msgstr "Gehienezko birritentatzeak"
 
 #: cs/linguacopier/interfaces.py:64
 msgid "Maximum stored jobs"
-msgstr ""
+msgstr "Gehienez gordetako lanak"
 
 #: cs/linguacopier/browser/jobs.pt:16
 msgid "No background worker has run recently. Queued jobs will not progress until the worker is scheduled."
-msgstr ""
+msgstr "Atzeko planoko langileak ez du duela gutxi exekutatu. Ilaran dauden lanak ez dira aurrera egingo langilea programatu arte."
 
-#: cs/linguacopier/browser/controlpanel.py:70
+#: cs/linguacopier/browser/controlpanel.py:69
 msgid "No such job."
-msgstr ""
+msgstr "Ez dago halako lanik."
 
 #: cs/linguacopier/browser/copier.pt:73
 #: cs/linguacopier/browser/copier.py:266
@@ -227,7 +227,7 @@ msgstr "Itzuli gabe"
 
 #: cs/linguacopier/interfaces.py:37
 msgid "Number of items copied between commits in a background job."
-msgstr ""
+msgstr "Atzeko planoko lan batean commiten artean kopiatutako elementu kopurua."
 
 #: cs/linguacopier/browser/copier.pt:88
 msgid "Object"
@@ -240,27 +240,27 @@ msgstr "Partziala"
 
 #: cs/linguacopier/browser/jobs.pt:35
 msgid "Progress"
-msgstr ""
+msgstr "Aurrerapena"
 
-#: cs/linguacopier/browser/controlpanel.py:112
+#: cs/linguacopier/browser/controlpanel.py:117
 msgid "Queued"
-msgstr ""
+msgstr "Ilaran"
 
 #: cs/linguacopier/browser/jobs.pt:36
 msgid "Requested by"
-msgstr ""
+msgstr "Nork eskatuta"
 
 #: cs/linguacopier/browser/jobs.pt:90
 msgid "Retry"
-msgstr ""
+msgstr "Birritentatu"
 
 #: cs/linguacopier/browser/copier.py:125
 msgid "Run the copy directly, in the background, or let the copier decide based on the amount of work."
-msgstr ""
+msgstr "Exekutatu kopia zuzenean, atzeko planoan, edo utzi kopiatzaileari lan-kantitatearen arabera erabakitzen."
 
-#: cs/linguacopier/browser/controlpanel.py:113
+#: cs/linguacopier/browser/controlpanel.py:118
 msgid "Running"
-msgstr ""
+msgstr "Exekutatzen"
 
 #: cs/linguacopier/browser/copier.py:105
 msgid "Select into which languages the translation will be made"
@@ -277,7 +277,7 @@ msgstr "Eduki batzuk ezin izan dira kopiatu"
 
 #: cs/linguacopier/browser/jobs.pt:38
 msgid "Started"
-msgstr ""
+msgstr "Hasita"
 
 #: cs/linguacopier/browser/copier.pt:90
 #: cs/linguacopier/browser/jobs.pt:32
@@ -290,19 +290,19 @@ msgstr "Helburuko hizkuntzak"
 
 #: cs/linguacopier/browser/jobs.pt:23
 msgid "The background worker is running."
-msgstr ""
+msgstr "Atzeko planoko langilea exekutatzen ari da."
 
-#: cs/linguacopier/browser/controlpanel.py:85
+#: cs/linguacopier/browser/controlpanel.py:89
 msgid "The job cannot be deleted."
-msgstr ""
+msgstr "Lana ezin da ezabatu."
 
-#: cs/linguacopier/browser/controlpanel.py:80
+#: cs/linguacopier/browser/controlpanel.py:82
 msgid "The job cannot be retried."
-msgstr ""
+msgstr "Lana ezin da birritentatu."
 
 #: cs/linguacopier/browser/jobs.pt:110
 msgid "There are no copy jobs."
-msgstr ""
+msgstr "Ez dago kopia-lanik."
 
 #: cs/linguacopier/browser/copier.pt:142
 msgid "There are no other languages to copy this content to."
@@ -340,11 +340,11 @@ msgstr "Eguneratuta"
 
 #: cs/linguacopier/interfaces.py:49
 msgid "User id the background worker runs as. Leave empty to run as the site owner."
-msgstr ""
+msgstr "Atzeko planoko langilea exekutatzen den erabiltzaile-id-a. Utzi hutsik gunearen jabe gisa exekutatzeko."
 
 #: cs/linguacopier/interfaces.py:48
 msgid "Worker user"
-msgstr ""
+msgstr "Langilearen erabiltzailea"
 
 #: cs/linguacopier/configure.zcml:27
 msgid "cs.linguacopier"
