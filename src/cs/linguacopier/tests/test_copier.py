@@ -944,6 +944,18 @@ class TestTranslateOnCopy(unittest.TestCase):
         self.assertEqual(translated.title, "[es] Hello")
         self.assertNotIn("alpha", [call[0] for call in self.service.calls])
 
+    def test_datagrid_text_columns_are_translated(self):
+        doc = self._document(title="Hello")
+        doc.test_rows = [{"label": "First", "amount": 3}]
+
+        ContentCopier(doc).copy(["es"], include_context=True, translate=True)
+
+        rows = ITranslationManager(doc).get_translation("es").test_rows
+        # only the free-text column is translated; the number is copied as is
+        self.assertEqual(rows[0]["label"], "[es] First")
+        self.assertEqual(rows[0]["amount"], 3)
+        self.assertIn(("First", "ca", "es"), self.service.calls)
+
     def test_translated_id_is_derived_from_the_translated_title(self):
         doc = self._document(title="Hello")
 

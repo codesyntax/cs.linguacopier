@@ -57,6 +57,7 @@ setup(
     ],
     extras_require={
         "test": [
+            "collective.z3cform.datagridfield",
             "plone.app.contenttypes",
             "plone.app.dexterity",
             "plone.app.relationfield",

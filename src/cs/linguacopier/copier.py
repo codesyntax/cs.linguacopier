@@ -56,6 +56,11 @@ try:
 except ImportError:  # pragma: no cover - optional dependency
     IJSONField = None
 
+try:
+    from collective.z3cform.datagridfield.interfaces import IRow as IDataGridRow
+except ImportError:  # pragma: no cover - optional dependency
+    IDataGridRow = None
+
 import transaction
 
 log = getLogger("cs.linguacopier.copier")
@@ -114,6 +119,17 @@ def is_translatable_field(field):
     return not any(
         iface.providedBy(field) for iface in NON_TRANSLATABLE_FIELD_INTERFACES
     )
+
+
+def is_datagrid_field(field):
+    """Whether ``field`` is a data grid — a list of structured rows.
+
+    A data grid is not free text, but the free-text values *inside* its rows are
+    worth translating, so it is handled specially rather than skipped.
+    """
+    if field is None or IDataGridRow is None:
+        return False
+    return IDataGridRow.providedBy(getattr(field, "value_type", None))
 
 
 def derive_id_from_title(obj, language):
@@ -414,7 +430,14 @@ class ContentCopier:
                     source_adapter,
                     target_adapter,
                     name,
-                    None if index else schema_field,
+                    # The field object is needed downstream for the canonical
+                    # schema (relation handling) and for data grids on any
+                    # schema (their inner text values are translated).
+                    (
+                        schema_field
+                        if index == 0 or is_datagrid_field(schema_field)
+                        else None
+                    ),
                     # Only free text is translated; everything else (tokens,
                     # numbers, dates, relations, blobs, ...) is copied verbatim.
                     translatable=is_translatable_field(schema_field),
@@ -440,7 +463,10 @@ class ContentCopier:
                             to_id = intids.register(related_element_translation)
                         related_translations.append(RelationValue(to_id))
             value = related_translations
-        if self.translate and translatable and isinstance(value, str) and value:
+        if self.translate and translatable and is_datagrid_field(field):
+            # A data grid is a list of rows; translate the free-text columns.
+            value = self._translate_datagrid(value, field)
+        elif self.translate and translatable and isinstance(value, str) and value:
             # Scalars and rich text raw HTML are both plain strings here; the
             # original value is kept when the service returns nothing.
             self._eligible_fields += 1
@@ -466,6 +492,33 @@ class ContentCopier:
         return translation.translate(
             value, self._source_language, self._target_language
         )
+
+    def _translate_datagrid(self, rows, field):
+        """Translate the free-text columns of a data grid's rows."""
+        row_schema = getattr(field.value_type, "schema", None)
+        if row_schema is None:
+            return rows
+        columns = [
+            name
+            for name, column in getFieldsInOrder(row_schema)
+            if is_translatable_field(column)
+        ]
+        if not columns:
+            return rows
+        translated_rows = []
+        for row in rows or []:
+            translated_row = dict(row)
+            for name in columns:
+                cell = translated_row.get(name)
+                if not isinstance(cell, str) or not cell:
+                    continue
+                self._eligible_fields += 1
+                translated_cell = self._translate_value(cell)
+                if translated_cell is not None:
+                    self._translated_fields += 1
+                    translated_row[name] = translated_cell
+            translated_rows.append(translated_row)
+        return translated_rows
 
     def _translation_outcome(self):
         """Three-valued outcome of translating one copied object."""

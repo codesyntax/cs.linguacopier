@@ -12,4 +12,13 @@
       for="plone.dexterity.interfaces.IDexterityContent"
       />
 
+  <plone:behavior
+      name="cs.linguacopier.tests.datagrid"
+      title="Test data grid"
+      description="Test-only behavior with a data grid field."
+      factory="cs.linguacopier.tests.behaviors.TestDataGrid"
+      provides="cs.linguacopier.tests.behaviors.ITestDataGrid"
+      for="plone.dexterity.interfaces.IDexterityContent"
+      />
+
 </configure>

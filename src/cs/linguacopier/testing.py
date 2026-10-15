@@ -51,12 +51,14 @@ class CsLinguacopierLayer(PloneSandboxLayer):
         applyProfile(portal, "plone.app.multilingual:default")
         applyProfile(portal, "cs.linguacopier:default")
 
-        # Enable the test-only controlled-fields behavior on Document.
+        # Enable the test-only behaviors on Document.
         fti = getUtility(IDexterityFTI, name="Document")
-        if "cs.linguacopier.tests.categorized" not in fti.behaviors:
-            fti.behaviors = tuple(fti.behaviors) + (
-                "cs.linguacopier.tests.categorized",
-            )
+        for behavior in (
+            "cs.linguacopier.tests.categorized",
+            "cs.linguacopier.tests.datagrid",
+        ):
+            if behavior not in fti.behaviors:
+                fti.behaviors = tuple(fti.behaviors) + (behavior,)
 
 
 CS_LINGUACOPIER_FIXTURE = CsLinguacopierLayer()
