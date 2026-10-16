@@ -56,6 +56,7 @@ class CsLinguacopierLayer(PloneSandboxLayer):
         for behavior in (
             "cs.linguacopier.tests.categorized",
             "cs.linguacopier.tests.datagrid",
+            "cs.linguacopier.tests.related",
         ):
             if behavior not in fti.behaviors:
                 fti.behaviors = tuple(fti.behaviors) + (behavior,)
