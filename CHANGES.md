@@ -9,6 +9,17 @@
 
 <!-- towncrier release notes start -->
 
+## 2.3.1 (2026-10-16)
+
+
+### Bug fixes
+
+- Copying no longer crashes with an AttributeError when a relation field is
+  provided by a behavior whose adapter is not the content object (such as
+  `cs_dynamicpages`' RelatedImage): relation remapping now uses the language the
+  copy is going into instead of calling `Language()` on the adapter. Empty or
+  unset relation lists are also handled, instead of failing while iterating them. 
+
 ## 2.3 (2026-10-15)
 
 
