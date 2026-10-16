@@ -477,6 +477,29 @@ class TestCopier(unittest.TestCase):
         related_es = ITranslationManager(related).get_translation("es")
         self.assertEqual(translated.test_related.to_object, related_es)
 
+    def test_behavior_relation_is_remapped(self):
+        # The relation lives on a behavior whose adapter is not the content
+        # object, so the adapter has no Language(); remapping must still find
+        # the target language.
+        related = self._create_document(title="Related")
+        doc = self._create_document(title="Main")
+        ITranslationManager(related).add_translation("es")
+
+        intids = getUtility(IIntIds)
+        try:
+            related_id = intids.getId(related)
+        except KeyError:
+            related_id = intids.register(related)
+        doc.test_related = [RelationValue(related_id)]
+
+        report = self._copy(doc, ["es"])
+
+        translated = ITranslationManager(doc).get_translation("es")
+        related_es = ITranslationManager(related).get_translation("es")
+        self.assertEqual([r.status for r in report.successes], ["created"])
+        self.assertEqual(report.errors, [])
+        self.assertEqual(translated.test_related[0].to_object, related_es)
+
     def test_language_independent_relation_is_left_to_pam(self):
         # relatedItems is marked language-independent in the test fixture.
         # The copier skips it; plone.app.multilingual copies it when it creates

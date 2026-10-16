@@ -345,6 +345,8 @@ class ContentCopier:
 
     def _translated_relations(self, relations, target):
         """Remap a relation list to each related object's translation."""
+        if not relations:
+            return relations
         translated = []
         for relation in relations:
             new_relation = self._translated_relation(relation, target)
@@ -357,7 +359,12 @@ class ContentCopier:
         related = relation.to_object if relation is not None else None
         if related is None:
             return None
-        translated = ITranslationManager(related).get_translation(target.Language())
+        # ``target`` can be a behavior adapter rather than the content object,
+        # and such an adapter need not expose ``Language()``. The language the
+        # copy is going into is tracked by the copier, so prefer it and only
+        # fall back to the object for standalone calls.
+        language = self._target_language or target.Language()
+        translated = ITranslationManager(related).get_translation(language)
         if translated is None:
             return None
         intids = getUtility(IIntIds)

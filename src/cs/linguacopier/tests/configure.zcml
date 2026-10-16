@@ -21,4 +21,13 @@
       for="plone.dexterity.interfaces.IDexterityContent"
       />
 
+  <plone:behavior
+      name="cs.linguacopier.tests.related"
+      title="Test related"
+      description="Test-only behavior with a relation list on a separate adapter."
+      factory="cs.linguacopier.tests.behaviors.TestRelated"
+      provides="cs.linguacopier.tests.behaviors.ITestRelated"
+      for="plone.dexterity.interfaces.IDexterityContent"
+      />
+
 </configure>
