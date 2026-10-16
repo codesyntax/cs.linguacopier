@@ -17,6 +17,11 @@
 - Detect relation fields by interface (IRelationList/IRelationChoice) instead of class, so custom relation fields that do not subclass RelationList/RelationChoice are remapped too. Keep the original relation when the related object has no translation in the target language. @erral 
 - Hide upgrade profiles from installer view @erral 
 
+## 2.4.0a2 (2026-10-16)
+
+No significant changes.
+
+
 ## 2.3.1 (2026-10-16)
 
 
