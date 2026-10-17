@@ -11,6 +11,12 @@ class HiddenProfiles:
             "cs.linguacopier:uninstall",
         ]
 
+    def getNonInstallableProducts(self):
+        """Hide the upgrades package from site-creation and quickinstaller."""
+        return [
+            "cs.linguacopier.upgrades",
+        ]
+
 
 def post_install(context):
     """Post install script"""
