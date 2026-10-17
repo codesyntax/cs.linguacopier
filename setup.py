@@ -12,7 +12,7 @@ long_description = "\n\n".join(
 
 setup(
     name="cs.linguacopier",
-    version="2.3.2.dev0",
+    version="2.4.0a3.dev0",
     description="Content-copier useful to copy basic content from one language-tree to another to start working with the whole content-tree",
     long_description=long_description,
     long_description_content_type="text/markdown",
@@ -41,6 +41,7 @@ setup(
     install_requires=[
         "plone.api",
         "plone.app.multilingual",
+        "plone.app.registry",
         "plone.app.textfield",
         "plone.app.z3cform",
         "plone.base",
@@ -73,6 +74,9 @@ setup(
         ],
     },
     entry_points="""
+    [console_scripts]
+    linguacopier-worker = cs.linguacopier.worker:run
+
     [z3c.autoinclude.plugin]
     target = plone
     """,
