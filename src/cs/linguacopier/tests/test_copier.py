@@ -848,7 +848,7 @@ class TestCopier(unittest.TestCase):
     def test_copy_item_returns_an_error_and_rolls_back(self):
         doc = self._create_document(title="Hello")
 
-        def explode(self, source, target, key, field=None):
+        def explode(self, source, target, key, field=None, field_schema=None):
             raise ValueError(f"cannot copy {key}")
 
         with mock.patch.object(ContentCopier, "change_content", explode):
