@@ -4,6 +4,7 @@ from collective.z3cform.datagridfield.datagridfield import DataGridFieldWidgetFa
 from collective.z3cform.datagridfield.row import DictRow
 from plone.autoform import directives
 from plone.autoform.interfaces import IFormFieldProvider
+from z3c.relationfield.interfaces import IRelationList
 from z3c.relationfield.schema import RelationChoice
 from z3c.relationfield.schema import RelationList
 from zope import schema
@@ -136,3 +137,66 @@ class TestRelated:
     @test_related.setter
     def test_related(self, value):
         self.context.test_related = value
+
+
+class ITestImageRelationList(IRelationList):
+    """A project-specific relation list marker, as cs_dynamicpages defines."""
+
+
+@implementer(ITestImageRelationList)
+class ImageRelationList(RelationList):
+    """A RelationList subclass carrying a project-specific marker.
+
+    This mirrors cs_dynamicpages' ``ImageRelationList``.
+    """
+
+
+@implementer(IRelationList)
+class InterfaceRelationList(schema.List):
+    """A list field that provides IRelationList without subclassing it.
+
+    Only an interface-based check recognises its values as relations.
+    """
+
+
+class ITestCustomRelated(Interface):
+    """A behavior with project-specific relation list fields."""
+
+    test_related_image = ImageRelationList(
+        title="Related image",
+        value_type=RelationChoice(vocabulary="plone.app.vocabularies.Catalog"),
+        required=False,
+    )
+
+    test_interface_related = InterfaceRelationList(
+        title="Interface relation",
+        value_type=RelationChoice(vocabulary="plone.app.vocabularies.Catalog"),
+        required=False,
+    )
+
+
+alsoProvides(ITestCustomRelated, IFormFieldProvider)
+
+
+@implementer(ITestCustomRelated)
+class TestCustomRelated:
+    """Store both relation list values as attributes on the content."""
+
+    def __init__(self, context):
+        self.context = context
+
+    @property
+    def test_related_image(self):
+        return getattr(self.context, "test_related_image", None)
+
+    @test_related_image.setter
+    def test_related_image(self, value):
+        self.context.test_related_image = value
+
+    @property
+    def test_interface_related(self):
+        return getattr(self.context, "test_interface_related", None)
+
+    @test_interface_related.setter
+    def test_interface_related(self, value):
+        self.context.test_interface_related = value

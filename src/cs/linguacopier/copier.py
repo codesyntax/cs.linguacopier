@@ -23,8 +23,8 @@ from plone.folder.interfaces import IExplicitOrdering
 from plone.i18n.normalizer.interfaces import IURLNormalizer
 from Products.CMFCore.interfaces import IFolderish
 from z3c.relationfield import RelationValue
-from z3c.relationfield.schema import RelationChoice
-from z3c.relationfield.schema import RelationList
+from z3c.relationfield.interfaces import IRelationChoice
+from z3c.relationfield.interfaces import IRelationList
 from zope.component import getAdapters
 from zope.component import getUtility
 from zope.component import queryUtility
@@ -323,9 +323,9 @@ class ContentCopier:
     def change_content(self, source, target, key, field=None):
         source_value = getattr(source, key)
         value = getattr(source_value, "raw", source_value)
-        if isinstance(field, RelationList):
+        if IRelationList.providedBy(field):
             value = self._translated_relations(value, target)
-        elif isinstance(field, RelationChoice) and value is not None:
+        elif IRelationChoice.providedBy(field) and value is not None:
             translated_relation = self._translated_relation(value, target)
             if translated_relation is not None:
                 value = translated_relation
@@ -344,14 +344,17 @@ class ContentCopier:
             )
 
     def _translated_relations(self, relations, target):
-        """Remap a relation list to each related object's translation."""
+        """Remap a relation list to each related object's translation.
+
+        A related object without a translation in the target language keeps its
+        original relation, so copying never drops relations from the list.
+        """
         if not relations:
             return relations
         translated = []
         for relation in relations:
             new_relation = self._translated_relation(relation, target)
-            if new_relation is not None:
-                translated.append(new_relation)
+            translated.append(new_relation if new_relation is not None else relation)
         return translated
 
     def _translated_relation(self, relation, target):

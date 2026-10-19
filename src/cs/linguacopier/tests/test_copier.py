@@ -500,6 +500,77 @@ class TestCopier(unittest.TestCase):
         self.assertEqual(report.errors, [])
         self.assertEqual(translated.test_related[0].to_object, related_es)
 
+    def test_custom_relation_list_fields_are_remapped(self):
+        # cs_dynamicpages defines its own RelationList subclass with a
+        # project-specific marker; another custom field may only provide
+        # IRelationList without subclassing RelationList. Both must be
+        # recognised as relation lists and remapped.
+        related = self._create_document(title="Related")
+        doc = self._create_document(title="Main")
+        ITranslationManager(related).add_translation("es")
+
+        intids = getUtility(IIntIds)
+        try:
+            related_id = intids.getId(related)
+        except KeyError:
+            related_id = intids.register(related)
+        doc.test_related_image = [RelationValue(related_id)]
+        doc.test_interface_related = [RelationValue(related_id)]
+
+        report = self._copy(doc, ["es"])
+
+        translated = ITranslationManager(doc).get_translation("es")
+        related_es = ITranslationManager(related).get_translation("es")
+        self.assertEqual([r.status for r in report.successes], ["created"])
+        self.assertEqual(report.errors, [])
+        self.assertEqual(translated.test_related_image[0].to_object, related_es)
+        self.assertEqual(translated.test_interface_related[0].to_object, related_es)
+
+    def test_relation_list_keeps_related_item_without_translation(self):
+        translated_item = self._create_document(title="Translated")
+        untranslated_item = self._create_document(title="Untranslated")
+        doc = self._create_document(title="Main")
+        ITranslationManager(translated_item).add_translation("es")
+
+        intids = getUtility(IIntIds)
+        ids = {}
+        for item in (translated_item, untranslated_item):
+            try:
+                ids[item] = intids.getId(item)
+            except KeyError:
+                ids[item] = intids.register(item)
+        doc.test_related = [
+            RelationValue(ids[translated_item]),
+            RelationValue(ids[untranslated_item]),
+        ]
+
+        report = self._copy(doc, ["es"])
+
+        translated = ITranslationManager(doc).get_translation("es")
+        translated_es = ITranslationManager(translated_item).get_translation("es")
+        self.assertEqual(report.errors, [])
+        self.assertEqual(
+            [relation.to_object for relation in translated.test_related],
+            [translated_es, untranslated_item],
+        )
+
+    def test_relation_choice_keeps_related_item_without_translation(self):
+        related = self._create_document(title="Related")
+        doc = self._create_document(title="Main")
+        translated = ITranslationManager(doc).add_translation("es")
+
+        intids = getUtility(IIntIds)
+        try:
+            related_id = intids.getId(related)
+        except KeyError:
+            related_id = intids.register(related)
+        doc.test_related = RelationValue(related_id)
+
+        field = RelationChoice(vocabulary="plone.app.vocabularies.Catalog")
+        ContentCopier(doc).change_content(doc, translated, "test_related", field)
+
+        self.assertEqual(translated.test_related.to_object, related)
+
     def test_language_independent_relation_is_left_to_pam(self):
         # relatedItems is marked language-independent in the test fixture.
         # The copier skips it; plone.app.multilingual copies it when it creates

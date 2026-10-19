@@ -30,4 +30,13 @@
       for="plone.dexterity.interfaces.IDexterityContent"
       />
 
+  <plone:behavior
+      name="cs.linguacopier.tests.customrelated"
+      title="Test custom related"
+      description="Test-only behavior with project-specific relation list fields."
+      factory="cs.linguacopier.tests.behaviors.TestCustomRelated"
+      provides="cs.linguacopier.tests.behaviors.ITestCustomRelated"
+      for="plone.dexterity.interfaces.IDexterityContent"
+      />
+
 </configure>
