@@ -1,1 +1,0 @@
-Detect relation fields by interface (IRelationList/IRelationChoice) instead of class, so custom relation fields that do not subclass RelationList/RelationChoice are remapped too. Keep the original relation when the related object has no translation in the target language. @erral
