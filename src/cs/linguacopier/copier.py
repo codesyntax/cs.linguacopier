@@ -8,7 +8,9 @@ the browser layer.
 from Acquisition import aq_parent
 from cs.linguacopier import translation
 from cs.linguacopier.fields import is_datagrid_field
+from cs.linguacopier.fields import is_link_field
 from cs.linguacopier.fields import is_translatable_field
+from cs.linguacopier.fields import is_url
 from cs.linguacopier.interfaces import ITranslateThings
 from dataclasses import dataclass
 from dataclasses import field
@@ -17,11 +19,14 @@ from plone import api
 from plone.app.multilingual.dx.interfaces import ILanguageIndependentField
 from plone.app.multilingual.interfaces import ITranslationManager
 from plone.app.textfield.value import RichTextValue
+from plone.app.uuid.utils import uuidToObject
 from plone.dexterity.interfaces import IDexterityContent
 from plone.dexterity.utils import iterSchemata
 from plone.folder.interfaces import IExplicitOrdering
 from plone.i18n.normalizer.interfaces import IURLNormalizer
+from plone.uuid.interfaces import IUUID
 from Products.CMFCore.interfaces import IFolderish
+from urllib.parse import urlsplit
 from z3c.relationfield import RelationValue
 from z3c.relationfield.interfaces import IRelationChoice
 from z3c.relationfield.interfaces import IRelationList
@@ -32,9 +37,14 @@ from zope.container.interfaces import INameChooser
 from zope.intid.interfaces import IIntIds
 from zope.schema import getFieldsInOrder
 
+import re
 import transaction
 
 log = getLogger("cs.linguacopier.copier")
+
+_RESOLVEUID_RE = re.compile(
+    r"resolveuid/(?P<uuid>[0-9a-f-]{32,36})(?=[/?#]|$)", re.IGNORECASE
+)
 
 # TODO: Generalize these lists to something editable
 SKIPPED_PORTAL_TYPES = ["LIF"]
@@ -318,12 +328,20 @@ class ContentCopier:
                     # relations) when a translation is created and keeps them in
                     # sync afterwards, so the copier leaves them alone.
                     continue
-                self.change_content(source_adapter, target_adapter, name, schema_field)
+                self.change_content(
+                    source_adapter,
+                    target_adapter,
+                    name,
+                    schema_field,
+                    field_schema=field_schema,
+                )
 
-    def change_content(self, source, target, key, field=None):
+    def change_content(self, source, target, key, field=None, field_schema=None):
         source_value = getattr(source, key)
         value = getattr(source_value, "raw", source_value)
-        if IRelationList.providedBy(field):
+        if is_link_field(field_schema, key):
+            value = self._translated_link(value, target)
+        elif IRelationList.providedBy(field):
             value = self._translated_relations(value, target)
         elif IRelationChoice.providedBy(field) and value is not None:
             translated_relation = self._translated_relation(value, target)
@@ -377,6 +395,47 @@ class ContentCopier:
             to_id = intids.register(translated)
         return RelationValue(to_id)
 
+    def _translated_link(self, value, target):
+        """Point an internal link to the related object's translation."""
+        if not isinstance(value, str) or not value:
+            return value
+        if not self._is_internal_link(value):
+            return value
+        match = _RESOLVEUID_RE.search(value)
+        if match is None:
+            return value
+        try:
+            related = uuidToObject(match.group("uuid"))
+        except Exception:
+            log.exception("Could not resolve link %s", value)
+            return value
+        if related is None:
+            return value
+        language = self._target_language or target.Language()
+        translated = ITranslationManager(related).get_translation(language)
+        if translated is None:
+            return value
+        new_uuid = IUUID(translated)
+        if not new_uuid or new_uuid.lower() == match.group("uuid").lower():
+            return value
+        return value[: match.start("uuid")] + new_uuid + value[match.end("uuid") :]
+
+    def _is_internal_link(self, value):
+        """Whether a link URL points at this site rather than another."""
+        if value.startswith(("${portal_url}", "${navigation_root_url}")):
+            return True
+        if value.startswith("/") and not value.startswith("//"):
+            return True
+        if value.startswith(("./", "../")) or value.lower().startswith("resolveuid/"):
+            return True
+        parsed = urlsplit(value)
+        if not parsed.netloc:
+            return False
+        portal_url = urlsplit(api.portal.get().absolute_url())
+        return parsed.netloc == portal_url.netloc and (
+            not parsed.scheme or parsed.scheme.lower() == portal_url.scheme.lower()
+        )
+
     def _translated_value(self, value, field):
         """Translate the free-text parts of ``value`` for ``field``.
 
@@ -393,6 +452,8 @@ class ContentCopier:
 
     def _translate_text(self, value):
         """Translate free text, counting it for the translation outcome."""
+        if is_url(value):
+            return value
         self._eligible_fields += 1
         translated = self._translate_value(value)
         if translated is None:
