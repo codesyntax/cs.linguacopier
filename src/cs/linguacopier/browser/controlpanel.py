@@ -22,6 +22,7 @@ from plone.app.registry.browser.controlpanel import RegistryEditForm
 from plone.z3cform import layout
 from Products.Five.browser import BrowserView
 from Products.Five.browser.pagetemplatefile import ViewPageTemplateFile
+from urllib.parse import urlencode
 from zope.component import getUtility
 
 #: How long without a heartbeat before the worker is considered stalled.
@@ -92,6 +93,22 @@ class JobsView(BrowserView):
     @property
     def jobs(self):
         return getUtility(ICopyJobQueue).all()
+
+    def requested_by(self, job):
+        """Display data for the user who requested ``job``."""
+        userid = job.requested_by
+        if not userid:
+            return {"userid": "", "fullname": "", "url": ""}
+        member = api.user.get(userid=userid)
+        fullname = member.getProperty("fullname") if member is not None else None
+        return {
+            "userid": userid,
+            "fullname": fullname or userid,
+            "url": "{}/@@user-information?{}".format(
+                api.portal.get().absolute_url(),
+                urlencode({"userid": userid}),
+            ),
+        }
 
     @property
     def csrf_token(self):

@@ -11,6 +11,7 @@ from cs.linguacopier.jobs import QUEUED
 from cs.linguacopier.jobs import RUNNING
 from cs.linguacopier.settings import get_settings
 from cs.linguacopier.testing import CS_LINGUACOPIER_FUNCTIONAL_TESTING
+from plone import api
 from plone.app.testing import setRoles
 from plone.app.testing import TEST_USER_ID
 from plone.registry.interfaces import IRegistry
@@ -67,7 +68,7 @@ class TestJobsPanel(unittest.TestCase):
         setRoles(self.portal, TEST_USER_ID, ["Manager"])
         self.queue = getUtility(ICopyJobQueue)
 
-    def _job(self, **overrides):
+    def _job(self, requested_by="bob", **overrides):
         params = {
             "context_path": ["plone", "ca"],
             "target_languages": ["es"],
@@ -76,7 +77,7 @@ class TestJobsPanel(unittest.TestCase):
             "translate": False,
         }
         params.update(overrides)
-        job = self.queue.add(params, requested_by="bob")
+        job = self.queue.add(params, requested_by=requested_by)
         transaction.commit()
         return job
 
@@ -102,6 +103,27 @@ class TestJobsPanel(unittest.TestCase):
         html = self._view()()
 
         self.assertIn("Retry", html)
+
+    def test_panel_shows_requester_fullname_and_link(self):
+        api.user.create(
+            email="alice@example.com",
+            username="alice",
+            properties={"fullname": "Alice Example"},
+        )
+        self._job(requested_by="alice")
+
+        html = self._view()()
+
+        self.assertIn("Alice Example", html)
+        self.assertIn("/@@user-information?userid=alice", html)
+
+    def test_panel_falls_back_to_userid_for_unknown_requester(self):
+        self._job(requested_by="ghost")
+
+        html = self._view()()
+
+        self.assertIn(">ghost</a>", html)
+        self.assertIn("/@@user-information?userid=ghost", html)
 
     def test_panel_warns_when_no_worker_has_run(self):
         html = self._view()()

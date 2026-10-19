@@ -51,7 +51,16 @@
             <span tal:replace="python: view.progress_percent(job)">0</span>%
             (<span tal:replace="job/progress/processed">0</span>/<span tal:replace="job/progress/total">0</span>)
           </td>
-          <td tal:content="job/requested_by">user</td>
+          <td tal:define="
+                user python: view.requested_by(job);
+              ">
+            <a tal:condition="user/userid"
+               tal:content="user/fullname"
+               tal:attributes="
+                 href user/url;
+               "
+            >user</a>
+          </td>
           <td tal:content="python: view.format_time(job.created)">date</td>
           <td tal:content="python: view.format_time(job.started)">date</td>
           <td tal:content="python: view.format_time(job.finished)">date</td>
