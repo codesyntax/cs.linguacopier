@@ -43,6 +43,12 @@ translation outcome
 language-independent field
     A field marked with `plone.app.multilingual`'s language-independent marker, whose value is the same across all translations (for example a shared relation). `plone.app.multilingual` copies and keeps such fields in sync, so the copier does not copy or translate them.
 
+copy job
+    A copy queued to run in the background instead of inside the request. It is stored in the ZODB with its parameters, status, progress and errors, and is executed by the {term}`background worker`.
+
+background worker
+    The external command that processes queued {term}`copy job`s. It runs against the same database as the site, is scheduled with cron or a systemd timer, and writes a heartbeat the control panel reads.
+
 Plone
     [Plone](https://plone.org/) is an open source content management system used to create, edit, and manage digital content.
 ```
