@@ -7,6 +7,12 @@ verbatim. A data grid is not free text either, but its rows are translated
 separately (see the copier), so it is called out here.
 """
 
+from plone.app.z3cform.interfaces import ILinkWidget
+from plone.autoform.interfaces import IParameterizedWidget
+from plone.autoform.interfaces import WIDGETS_KEY
+from plone.autoform.utils import resolveDottedName
+from plone.supermodel.utils import mergedTaggedValueDict
+from z3c.form.interfaces import IWidget
 from z3c.relationfield.interfaces import IRelationChoice
 from z3c.relationfield.interfaces import IRelationList
 from zope.schema.interfaces import IBool
@@ -17,6 +23,8 @@ from zope.schema.interfaces import INumber
 from zope.schema.interfaces import IPassword
 from zope.schema.interfaces import ITime
 from zope.schema.interfaces import IURI
+
+import re
 
 try:
     from plone.namedfile.interfaces import INamedField
@@ -71,6 +79,64 @@ NON_TRANSLATABLE_FIELD_INTERFACES = tuple(
     )
     if iface is not None
 )
+
+#: Values that start like a URL or e-mail are copied verbatim, not translated.
+_URL_PREFIX = re.compile(
+    r"^(?:"
+    r"[a-z][a-z0-9+.-]*://"
+    r"|(?:mailto|tel|sms|news|urn|ftp|ftps|sftp|ssh|git|webcal|data):"
+    r"|//"
+    r"|/|"
+    r"\$\{portal_url\}"
+    r"|\$\{navigation_root_url\}"
+    r"|www\."
+    r")",
+    re.IGNORECASE,
+)
+
+
+def is_url(value):
+    """Whether a text value is a URL, and so must not be sent to translation."""
+    if not isinstance(value, str):
+        return False
+    value = value.strip()
+    if not value:
+        return False
+    return bool(_URL_PREFIX.match(value))
+
+
+def _widget_factory(widget):
+    if isinstance(widget, str):
+        try:
+            widget = resolveDottedName(widget)
+        except (AttributeError, ImportError, ValueError):
+            return None
+    if IParameterizedWidget.providedBy(widget):
+        widget = widget.widget_factory
+        if isinstance(widget, str):
+            try:
+                widget = resolveDottedName(widget)
+            except (AttributeError, ImportError, ValueError):
+                return None
+    return widget
+
+
+def is_link_field(field_schema, name):
+    """Whether the field uses plone.app.z3cform's LinkWidget."""
+    if field_schema is None or name is None:
+        return False
+    widget = mergedTaggedValueDict(field_schema, WIDGETS_KEY).get(name)
+    factory = _widget_factory(widget)
+    if factory is None:
+        return False
+    if IWidget.implementedBy(factory):
+        return ILinkWidget.implementedBy(factory)
+    return getattr(
+        factory, "__module__", ""
+    ) == "plone.app.z3cform.widgets.link" and getattr(factory, "__name__", "") in {
+        "LinkFieldWidget",
+        "LinkWidget",
+    }
 
 
 def is_translatable_field(field):

@@ -14,6 +14,7 @@ from cs.linguacopier.copier import NOT_TRANSLATED
 from cs.linguacopier.copier import PARTIAL
 from cs.linguacopier.copier import TRANSLATED
 from cs.linguacopier.fields import is_translatable_field
+from cs.linguacopier.fields import is_url
 from cs.linguacopier.interfaces import ICopyJobQueue
 from cs.linguacopier.interfaces import ITranslateThings
 from cs.linguacopier.testing import CS_LINGUACOPIER_FUNCTIONAL_TESTING
@@ -36,6 +37,7 @@ from plone.app.textfield.value import RichTextValue
 from plone.dexterity.interfaces import IDexterityContent
 from plone.dexterity.utils import createContentInContainer
 from plone.registry.interfaces import IRegistry
+from plone.uuid.interfaces import IUUID
 from Products.statusmessages.interfaces import IStatusMessage
 from unittest import mock
 from z3c.form.interfaces import WidgetActionExecutionError
@@ -132,6 +134,30 @@ class TestTranslatableFieldPredicate(unittest.TestCase):
         self.assertFalse(is_translatable_field(IOwnership["creators"]))
         self.assertFalse(is_translatable_field(IOwnership["contributors"]))
         self.assertFalse(is_translatable_field(IOwnership["rights"]))
+
+
+class TestUrlPredicate(unittest.TestCase):
+    """URL-like values are copied verbatim, never sent to translation."""
+
+    def test_urls_are_detected(self):
+        for value in (
+            "https://example.com/path",
+            "http://example.com",
+            "mailto:user@example.com",
+            "tel:+34123456789",
+            "//example.com/path",
+            "/ca/news",
+            "${portal_url}/resolveuid/abc",
+            "${navigation_root_url}/path",
+            "www.example.com",
+        ):
+            with self.subTest(value=value):
+                self.assertTrue(is_url(value))
+
+    def test_text_is_not_a_url(self):
+        for value in ("Hello world", "", "example.com", "Hola: que tal", None):
+            with self.subTest(value=value):
+                self.assertFalse(is_url(value))
 
 
 class TestDeriveIdFromTitle(unittest.TestCase):
@@ -575,6 +601,69 @@ class TestCopier(unittest.TestCase):
 
         self.assertEqual(translated.test_related.to_object, related)
 
+    def test_internal_link_is_remapped_to_translation(self):
+        related = self._create_document(title="Related")
+        doc = self._create_document(title="Main")
+        translated_related = ITranslationManager(related).add_translation("es")
+        doc.test_link = "${portal_url}/resolveuid/" + IUUID(related)
+
+        report = self._copy(doc, ["es"])
+
+        translated = ITranslationManager(doc).get_translation("es")
+        self.assertEqual(report.errors, [])
+        self.assertEqual(
+            translated.test_link,
+            "${portal_url}/resolveuid/" + IUUID(translated_related),
+        )
+
+    def test_internal_link_without_translation_is_kept(self):
+        related = self._create_document(title="Related")
+        doc = self._create_document(title="Main")
+        doc.test_link = "${portal_url}/resolveuid/" + IUUID(related)
+
+        report = self._copy(doc, ["es"])
+
+        translated = ITranslationManager(doc).get_translation("es")
+        self.assertEqual(report.errors, [])
+        self.assertEqual(
+            translated.test_link, "${portal_url}/resolveuid/" + IUUID(related)
+        )
+
+    def test_external_links_are_not_remapped(self):
+        related = self._create_document(title="Related")
+        doc = self._create_document(title="Main")
+        ITranslationManager(related).add_translation("es")
+        doc.test_link = "https://example.com/resolveuid/" + IUUID(related)
+
+        self._copy(doc, ["es"])
+        translated = ITranslationManager(doc).get_translation("es")
+        self.assertEqual(
+            translated.test_link, "https://example.com/resolveuid/" + IUUID(related)
+        )
+
+        doc.test_link = "mailto:user@example.com"
+        self._copy(doc, ["es"])
+        self.assertEqual(translated.test_link, "mailto:user@example.com")
+
+    def test_url_values_are_not_sent_to_translation(self):
+        doc = self._create_document(title="Hello")
+        doc.description = "https://example.com/path"
+        doc.test_link = "${portal_url}/resolveuid/abc"
+
+        with mock.patch(
+            "cs.linguacopier.copier.translation.translate",
+            side_effect=lambda value, source, target: "[es] " + value,
+        ) as translate:
+            ContentCopier(doc).copy(["es"], include_context=True, translate=True)
+
+        translated = ITranslationManager(doc).get_translation("es")
+        self.assertEqual(translated.description, "https://example.com/path")
+        self.assertEqual(translated.test_link, "${portal_url}/resolveuid/abc")
+        self.assertEqual(translated.title, "[es] Hello")
+        values = [call.args[0] for call in translate.call_args_list]
+        self.assertNotIn("https://example.com/path", values)
+        self.assertNotIn("${portal_url}/resolveuid/abc", values)
+
     def test_language_independent_relation_is_left_to_pam(self):
         # relatedItems is marked language-independent in the test fixture.
         # The copier skips it; plone.app.multilingual copies it when it creates
@@ -665,7 +754,7 @@ class TestCopier(unittest.TestCase):
     def test_copy_records_a_field_failure_and_rolls_back(self):
         doc = self._create_document(title="Hello")
 
-        def explode(self, source, target, key, field=None):
+        def explode(self, source, target, key, field=None, field_schema=None):
             raise ValueError(f"cannot copy {key}")
 
         with mock.patch.object(ContentCopier, "change_content", explode):
@@ -759,7 +848,7 @@ class TestCopier(unittest.TestCase):
     def test_copy_item_returns_an_error_and_rolls_back(self):
         doc = self._create_document(title="Hello")
 
-        def explode(self, source, target, key, field=None):
+        def explode(self, source, target, key, field=None, field_schema=None):
             raise ValueError(f"cannot copy {key}")
 
         with mock.patch.object(ContentCopier, "change_content", explode):
