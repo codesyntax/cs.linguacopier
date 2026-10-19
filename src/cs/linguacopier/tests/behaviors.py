@@ -2,6 +2,7 @@
 
 from collective.z3cform.datagridfield.datagridfield import DataGridFieldWidgetFactory
 from collective.z3cform.datagridfield.row import DictRow
+from plone.app.z3cform.widgets.link import LinkFieldWidget
 from plone.autoform import directives
 from plone.autoform.interfaces import IFormFieldProvider
 from z3c.relationfield.interfaces import IRelationList
@@ -200,3 +201,30 @@ class TestCustomRelated:
     @test_interface_related.setter
     def test_interface_related(self, value):
         self.context.test_interface_related = value
+
+
+class ITestLink(Interface):
+    """A behavior with a link field using plone.app.z3cform's LinkWidget."""
+
+    test_link = schema.TextLine(title="Test link", required=False)
+
+    directives.widget(test_link=LinkFieldWidget)
+
+
+alsoProvides(ITestLink, IFormFieldProvider)
+
+
+@implementer(ITestLink)
+class TestLink:
+    """Store the link value as an attribute on the content."""
+
+    def __init__(self, context):
+        self.context = context
+
+    @property
+    def test_link(self):
+        return getattr(self.context, "test_link", None)
+
+    @test_link.setter
+    def test_link(self, value):
+        self.context.test_link = value

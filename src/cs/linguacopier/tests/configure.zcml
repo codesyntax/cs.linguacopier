@@ -39,4 +39,13 @@
       for="plone.dexterity.interfaces.IDexterityContent"
       />
 
+  <plone:behavior
+      name="cs.linguacopier.tests.link"
+      title="Test link"
+      description="Test-only behavior with a LinkWidget field."
+      factory="cs.linguacopier.tests.behaviors.TestLink"
+      provides="cs.linguacopier.tests.behaviors.ITestLink"
+      for="plone.dexterity.interfaces.IDexterityContent"
+      />
+
 </configure>
