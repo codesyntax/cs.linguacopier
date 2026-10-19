@@ -9,6 +9,14 @@
 
 <!-- towncrier release notes start -->
 
+## 2.5.0a1 (2026-10-19)
+
+
+### New features
+
+- Remap internal links in fields using plone.app.z3cform's LinkWidget to the related object's translation when available, and never send URL-like text values to the translation service. @erral 
+- Show the requester's full name, linked to their user information page, in the background copy job list. @erral 
+
 ## 2.4.0a3 (2026-10-19)
 
 No significant changes.
