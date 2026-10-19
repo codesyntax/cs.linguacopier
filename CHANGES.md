@@ -9,6 +9,13 @@
 
 <!-- towncrier release notes start -->
 
+## 2.4 (2026-10-19)
+
+
+### New features
+
+- Remap internal links in fields using plone.app.z3cform's LinkWidget to the related object's translation when available, and never send URL-like text values to the translation service. @erral 
+
 ## 2.3.2 (2026-10-19)
 
 
